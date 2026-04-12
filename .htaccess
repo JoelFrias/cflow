@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# Evitar conflictos con archivos y carpetas reales
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Redirigir internamente a .php
+RewriteRule ^([a-zA-Z0-9_-]+)$ $1.php [L]
+
+# Redirigir externamente para eliminar .php de la URL visible
+RewriteCond %{THE_REQUEST} \s/([^.]+)\.php [NC]
+RewriteRule ^ /%1 [R=301,L]
