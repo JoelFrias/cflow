@@ -1,0 +1,299 @@
+/* auth.css - Estilos para login y registro */
+
+.auth-body {
+    background-color: #ffffff;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-page {
+    width: 100%;
+    padding: 1.5rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    position: relative;
+
+    /* Imagen de fondo */
+    background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1600&q=80');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* Overlay oscuro encima de la imagen */
+.auth-page::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 20, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 0;
+}
+
+/* La card queda por encima del overlay */
+.auth-card {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(228, 228, 231, 0.8);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 440px;
+    overflow: hidden;
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+/* ─── Header ─── */
+.auth-header {
+    padding: 2rem 2rem 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.auth-logo-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.auth-logo-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: #1a1a2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 15px;
+}
+
+.auth-logo-name {
+    font-size: 20px;
+    font-weight: 600;
+    color: #111;
+    letter-spacing: -0.01em;
+}
+
+.auth-logo-sub {
+    font-size: 14px;
+    color: #71717a;
+    margin: 0;
+}
+
+/* ─── Tabs ─── */
+.auth-tabs {
+    display: flex;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 0 2rem;
+}
+
+.auth-tab {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 13px 0;
+    margin-right: 20px;
+    cursor: pointer;
+    color: #71717a;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.auth-tab.active {
+    color: #111;
+    border-bottom-color: #1a1a2e;
+}
+
+.auth-tab:hover:not(.active) {
+    color: #444;
+}
+
+/* ─── Body ─── */
+.auth-body-inner {
+    padding: 2rem 2rem 2.25rem;
+}
+
+/* ─── Panels ─── */
+.auth-panel {
+    display: none;
+}
+
+.auth-panel.active {
+    display: block;
+}
+
+/* ─── Fields ─── */
+.auth-field {
+    margin-bottom: 1.1rem;
+}
+
+.auth-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #71717a;
+    margin-bottom: 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.auth-field input {
+    width: 100%;
+    height: 44px;
+    border: 1px solid #e4e4e7;
+    border-radius: 9px;
+    padding: 0 14px;
+    font-size: 15px;
+    color: #111;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+}
+
+.auth-field input:focus {
+    border-color: #1a1a2e;
+    box-shadow: 0 0 0 3px rgba(26, 26, 46, 0.08);
+}
+
+.auth-field input::placeholder {
+    color: #a1a1aa;
+}
+
+/* ─── Button ─── */
+.auth-btn {
+    width: 100%;
+    height: 44px;
+    background: #1a1a2e;
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 0.25rem;
+    font-family: inherit;
+    letter-spacing: 0.01em;
+    transition: background 0.15s;
+}
+
+.auth-btn:hover {
+    background: #2d2d50;
+}
+
+.auth-btn:active {
+    transform: scale(0.99);
+}
+
+/* ─── Hint ─── */
+.auth-hint {
+    font-size: 13px;
+    color: #a1a1aa;
+    text-align: center;
+    margin-top: 1.1rem;
+    margin-bottom: 0;
+}
+
+.auth-hint span {
+    color: #1a1a2e;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* ─── Alerts ─── */
+.auth-alert {
+    font-size: 14px;
+    padding: 11px 13px;
+    border-radius: 9px;
+    margin-bottom: 1rem;
+}
+
+.auth-alert-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.auth-alert-success {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+/* ─── Currency note ─── */
+.auth-currency-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #71717a;
+    margin-top: 1.25rem;
+    padding: 10px 12px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+}
+
+.auth-currency-note i {
+    font-size: 12px;
+    color: #a1a1aa;
+}
+
+.auth-pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: #fff;
+    border: 1px solid #e4e4e7;
+    color: #52525b;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 600px) {
+    .auth-page {
+        background-image: none;
+        background-color: #ffffff;
+        padding: 0;
+        align-items: center; /* ← antes era flex-start */
+    }
+
+    .auth-page::before {
+        display: none;
+    }
+
+    .auth-card {
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        min-height: 100vh;
+        background: #ffffff;
+
+        /* ← agrega esto para centrar verticalmente el contenido dentro de la card */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .auth-header,
+    .auth-body-inner {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+
+    .auth-tabs {
+        padding: 0 1.25rem;
+    }
+}

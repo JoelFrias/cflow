@@ -1,0 +1,262 @@
+<?php
+// ajax/accounts.php - Maneja operaciones CRUD para cuentas y obtiene transacciones relacionadas
+
+require_once '../config/database.php';
+
+// Configurar cabeceras y manejo de errores
+header('Content-Type: application/json');
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+// Función auxiliar para respuestas JSON
+function jsonResponse($success, $message, $extra = []) {
+    echo json_encode(array_merge(['success' => $success, 'message' => $message], $extra));
+    exit;
+}
+
+// Verificar autenticación
+if (!isset($_SESSION['user_id'])) {
+    jsonResponse(false, 'Sesión no iniciada');
+}
+$user_id = $_SESSION['user_id'];
+
+// Obtener acción
+$action = $_POST['action'] ?? $_GET['action'] ?? '';
+
+// Función para obtener tasa USD (si no está definida en database.php)
+if (!function_exists('getUSDRate')) {
+    function getUSDRate($pdo) {
+        $stmt = $pdo->prepare("SELECT exchange_rate_to_dop FROM currencies WHERE code = 'USD'");
+        $stmt->execute();
+        $rate = $stmt->fetchColumn();
+        return $rate ? (float)$rate : 1.0;
+    }
+}
+
+try {
+    switch ($action) {
+
+        // ========== OBTENER CUENTAS ==========
+        case 'get_accounts':
+            $stmt = $pdo->prepare("
+                SELECT a.*, c.symbol, c.exchange_rate_to_dop, c.name as currency_name
+                FROM accounts a
+                JOIN currencies c ON a.currency_code = c.code
+                WHERE a.user_id = ? AND a.type IN ('cash', 'bank', 'wallet')
+                ORDER BY a.type, a.name
+            ");
+            $stmt->execute([$user_id]);
+            $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Balance total en DOP
+            $stmt2 = $pdo->prepare("
+                SELECT SUM(a.balance * c.exchange_rate_to_dop) as total_dop
+                FROM accounts a
+                JOIN currencies c ON a.currency_code = c.code
+                WHERE a.user_id = ? AND a.type IN ('cash', 'bank', 'wallet')
+            ");
+            $stmt2->execute([$user_id]);
+            $total_dop = $stmt2->fetchColumn() ?? 0;
+
+            jsonResponse(true, 'Cuentas cargadas', [
+                'accounts'  => $accounts,
+                'total_dop' => (float)$total_dop,
+                'total_usd' => (float)($total_dop / getUSDRate($pdo)),
+            ]);
+            break;
+
+        // ========== CREAR CUENTA ==========
+        case 'create_account':
+            $name            = trim($_POST['name'] ?? '');
+            $type            = trim($_POST['type'] ?? '');
+            $currency_code   = trim($_POST['currency_code'] ?? '');
+            $initial_balance = (float)($_POST['initial_balance'] ?? 0);
+
+            if (empty($name)) throw new Exception('El nombre de la cuenta es obligatorio.');
+            if (!in_array($type, ['cash', 'bank', 'wallet'])) throw new Exception('Tipo de cuenta inválido.');
+            if (empty($currency_code)) throw new Exception('Debes seleccionar una moneda.');
+
+            // Verificar moneda
+            $chk = $pdo->prepare("SELECT code FROM currencies WHERE code = ?");
+            $chk->execute([$currency_code]);
+            if (!$chk->fetch()) throw new Exception("La moneda '{$currency_code}' no existe.");
+
+            $stmt = $pdo->prepare("
+                INSERT INTO accounts (user_id, name, type, currency_code, balance)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([$user_id, $name, $type, $currency_code, $initial_balance]);
+            $new_id = $pdo->lastInsertId();
+
+            // Obtener datos completos
+            $stmt2 = $pdo->prepare("
+                SELECT a.*, c.symbol, c.exchange_rate_to_dop, c.name as currency_name
+                FROM accounts a
+                JOIN currencies c ON a.currency_code = c.code
+                WHERE a.id = ?
+            ");
+            $stmt2->execute([$new_id]);
+            $new_account = $stmt2->fetch(PDO::FETCH_ASSOC);
+
+            jsonResponse(true, "Cuenta creada exitosamente en {$currency_code}.", [
+                'account' => $new_account
+            ]);
+            break;
+
+        // ========== ACTUALIZAR CUENTA ==========
+        case 'update_account':
+            $account_id     = (int)($_POST['account_id'] ?? 0);
+            $name           = trim($_POST['name'] ?? '');
+            $type           = trim($_POST['type'] ?? '');
+            $currency_code  = trim($_POST['currency_code'] ?? '');
+            $balance        = (float)($_POST['balance'] ?? 0);
+
+            if ($account_id <= 0) throw new Exception('ID de cuenta inválido.');
+            if (empty($name)) throw new Exception('El nombre es obligatorio.');
+            if (!in_array($type, ['cash', 'bank', 'wallet'])) throw new Exception('Tipo inválido.');
+            if (empty($currency_code)) throw new Exception('Debes seleccionar una moneda.');
+
+            // Verificar propiedad
+            $chk = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND user_id = ?");
+            $chk->execute([$account_id, $user_id]);
+            if (!$chk->fetch()) throw new Exception('Cuenta no encontrada o sin permiso.');
+
+            // Verificar moneda
+            $chkCur = $pdo->prepare("SELECT code FROM currencies WHERE code = ?");
+            $chkCur->execute([$currency_code]);
+            if (!$chkCur->fetch()) throw new Exception("Moneda '{$currency_code}' no existe.");
+
+            // Actualizar
+            $stmt = $pdo->prepare("
+                UPDATE accounts 
+                SET name = ?, type = ?, currency_code = ?, balance = ?
+                WHERE id = ? AND user_id = ?
+            ");
+            $stmt->execute([$name, $type, $currency_code, $balance, $account_id, $user_id]);
+
+            // Obtener datos actualizados
+            $stmt2 = $pdo->prepare("
+                SELECT a.*, c.symbol, c.exchange_rate_to_dop, c.name as currency_name
+                FROM accounts a
+                JOIN currencies c ON a.currency_code = c.code
+                WHERE a.id = ?
+            ");
+            $stmt2->execute([$account_id]);
+            $updated = $stmt2->fetch(PDO::FETCH_ASSOC);
+
+            jsonResponse(true, 'Cuenta actualizada correctamente.', [
+                'account' => $updated
+            ]);
+            break;
+
+        // ========== ELIMINAR CUENTA ==========
+        case 'delete_account':
+            $account_id = (int)($_POST['account_id'] ?? 0);
+            if ($account_id <= 0) throw new Exception('ID de cuenta inválido.');
+
+            // Verificar propiedad y obtener nombre
+            $chk = $pdo->prepare("SELECT name FROM accounts WHERE id = ? AND user_id = ?");
+            $chk->execute([$account_id, $user_id]);
+            $account = $chk->fetch(PDO::FETCH_ASSOC);
+            if (!$account) throw new Exception('Cuenta no encontrada o sin permiso.');
+
+            $stmt = $pdo->prepare("DELETE FROM accounts WHERE id = ? AND user_id = ?");
+            $stmt->execute([$account_id, $user_id]);
+
+            jsonResponse(true, "Cuenta '{$account['name']}' eliminada exitosamente.");
+            break;
+
+        // ========== HISTORIAL DE TRANSACCIONES DE UNA CUENTA ==========
+        case 'get_account_transactions':
+            $account_id = (int)($_POST['account_id'] ?? 0);
+            $date_from  = trim($_POST['date_from'] ?? '');
+            $date_to    = trim($_POST['date_to']   ?? '');
+            $type       = trim($_POST['type']      ?? '');
+
+            if ($account_id <= 0) throw new Exception('ID de cuenta inválido.');
+
+            // Verificar que la cuenta pertenece al usuario
+            $chk = $pdo->prepare("
+                SELECT a.id, a.currency_code, c.symbol
+                FROM accounts a
+                JOIN currencies c ON a.currency_code = c.code
+                WHERE a.id = ? AND a.user_id = ? AND a.type IN ('cash', 'bank', 'wallet')
+            ");
+            $chk->execute([$account_id, $user_id]);
+            $account = $chk->fetch(PDO::FETCH_ASSOC);
+            if (!$account) throw new Exception('Cuenta no encontrada o sin permiso.');
+
+            // Construir la consulta con filtros opcionales
+            $sql = "
+                SELECT
+                    t.id,
+                    t.type,
+                    t.amount,
+                    t.description,
+                    t.date,
+                    t.original_currency,
+                    c.symbol            AS currency_symbol,
+                    cat.name            AS category_name
+                FROM transactions t
+                LEFT JOIN currencies c   ON t.original_currency = c.code
+                LEFT JOIN categories cat ON t.category_id        = cat.id
+                WHERE t.user_id    = ?
+                  AND t.account_id = ?
+            ";
+            $params = [$user_id, $account_id];
+
+            // Filtro: fecha desde
+            if (!empty($date_from)) {
+                $sql .= " AND t.date >= ?";
+                $params[] = $date_from;
+            }
+
+            // Filtro: fecha hasta
+            if (!empty($date_to)) {
+                $sql .= " AND t.date <= ?";
+                $params[] = $date_to;
+            }
+
+            // Filtro: tipo de transacción
+            if (!empty($type) && in_array($type, ['income', 'expense', 'transfer'])) {
+                $sql .= " AND t.type = ?";
+                $params[] = $type;
+            }
+
+            $sql .= " ORDER BY t.date DESC, t.id DESC LIMIT 300";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Si la transacción no tiene original_currency, usar la moneda de la cuenta
+            foreach ($transactions as &$t) {
+                if (empty($t['currency_symbol'])) {
+                    $t['currency_symbol'] = $account['symbol'];
+                }
+                if (empty($t['original_currency'])) {
+                    $t['original_currency'] = $account['currency_code'];
+                }
+            }
+            unset($t);
+
+            jsonResponse(true, 'Transacciones cargadas', [
+                'transactions'    => $transactions,
+                'currency_symbol' => $account['symbol'],
+                'currency_code'   => $account['currency_code'],
+            ]);
+            break;
+
+        default:
+            jsonResponse(false, "Acción '{$action}' no reconocida.");
+    }
+
+} catch (PDOException $e) {
+    jsonResponse(false, 'Error en la base de datos', [
+        'full_message' => $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine()
+    ]);
+} catch (Exception $e) {
+    jsonResponse(false, $e->getMessage(), [
+        'full_message' => $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine()
+    ]);
+}

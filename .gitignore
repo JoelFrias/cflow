@@ -1,0 +1,80 @@
+# =========================
+# SISTEMA / OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDEs / EDITORES
+# =========================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# =========================
+# DEPENDENCIAS
+# =========================
+vendor/
+node_modules/
+
+# =========================
+# ARCHIVOS DE ENTORNO
+# =========================
+.env
+.env.local
+.env.production
+.env.dev
+
+# =========================
+# LOGS
+# =========================
+*.log
+logs/
+storage/logs/
+
+# =========================
+# CACHE / TEMP
+# =========================
+cache/
+tmp/
+storage/cache/
+*.cache
+
+# =========================
+# SESIONES
+# =========================
+sessions/
+storage/sessions/
+
+# =========================
+# SUBIDAS DE USUARIO
+# =========================
+uploads/
+storage/uploads/
+public/uploads/
+
+# =========================
+# ARCHIVOS COMPILADOS
+# =========================
+dist/
+build/
+*.map
+
+# =========================
+# BASE DE DATOS LOCAL
+# =========================
+*.sql
+*.sqlite
+
+# =========================
+# ARCHIVOS SENSIBLES
+# =========================
+config.php
+database.php
+
+# =========================
+# BACKUPS
+# =========================
+*.bak
+*.backup
