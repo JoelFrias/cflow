@@ -7,73 +7,167 @@ header('Content-Type: application/json');
 
 redirectIfNotLoggedIn();
 
-$user_id = $_SESSION['user_id'];
-$action  = $_POST['action'] ?? $_GET['action'] ?? '';
+$user_id = (int) $_SESSION['user_id'];
+$action  = trim($_POST['action'] ?? $_GET['action'] ?? '');
+
+// Tipos de transacción válidos (única fuente de verdad)
+const VALID_TYPES = ['income', 'expense', 'transfer'];
+
+// ─────────────────────────────────────────────────────────────
+// Helper: respuesta de error + rollback + exit
+// ─────────────────────────────────────────────────────────────
+function fail(PDO $pdo, string $message, string $full = ''): never
+{
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    echo json_encode([
+        'success'      => false,
+        'message'      => $message,
+        'full_message' => $full ?: $message,
+    ]);
+    exit;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helper: validar formato de fecha YYYY-MM-DD
+// ─────────────────────────────────────────────────────────────
+function validateDate(string $date): bool
+{
+    $d = DateTime::createFromFormat('Y-m-d', $date);
+    return $d && $d->format('Y-m-d') === $date;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helper: obtener cuenta verificando que pertenezca al usuario.
+// Usa FOR UPDATE cuando se llama dentro de una transacción.
+// ─────────────────────────────────────────────────────────────
+function fetchAccountOrFail(PDO $pdo, int $account_id, int $user_id, bool $lock = false): array
+{
+    $for_update = $lock ? 'FOR UPDATE' : '';
+    $stmt = $pdo->prepare("
+        SELECT a.*, c.exchange_rate_to_dop
+        FROM accounts a
+        JOIN currencies c ON a.currency_code = c.code
+        WHERE a.id = ? AND a.user_id = ?
+        LIMIT 1 {$for_update}
+    ");
+    $stmt->execute([$account_id, $user_id]);
+    $account = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$account) {
+        throw new Exception('Cuenta no encontrada o sin permiso para usarla.');
+    }
+
+    return $account;
+}
 
 try {
+
     switch ($action) {
 
-        // ============================================
+        // ============================================================
         // OBTENER TRANSACCIONES CON FILTROS + PAGINACIÓN
-        // ============================================
+        // ============================================================
         case 'get_transactions':
-            $filter_account    = !empty($_GET['filter_account'])    ? (int) $_GET['filter_account']    : null;
-            $filter_category   = !empty($_GET['filter_category'])   ? (int) $_GET['filter_category']   : null;
-            $filter_type       = !empty($_GET['filter_type'])       ? $_GET['filter_type']              : null;
-            $filter_min_amount = isset($_GET['filter_min_amount'])  && $_GET['filter_min_amount'] !== '' ? (float) $_GET['filter_min_amount'] : null;
-            $filter_max_amount = isset($_GET['filter_max_amount'])  && $_GET['filter_max_amount'] !== '' ? (float) $_GET['filter_max_amount'] : null;
-            $filter_date_from  = !empty($_GET['filter_date_from'])  ? $_GET['filter_date_from']         : null;
-            $filter_date_to    = !empty($_GET['filter_date_to'])    ? $_GET['filter_date_to']           : null;
-            $filter_search     = !empty($_GET['filter_search'])     ? trim($_GET['filter_search'])      : null;
+            $filter_account    = !empty($_GET['filter_account'])   ? (int)   $_GET['filter_account']   : null;
+            $filter_category   = !empty($_GET['filter_category'])  ? (int)   $_GET['filter_category']  : null;
+            $filter_type       = !empty($_GET['filter_type'])      ? trim($_GET['filter_type'])         : null;
+            $filter_min_amount = (isset($_GET['filter_min_amount']) && $_GET['filter_min_amount'] !== '')
+                                    ? (float) $_GET['filter_min_amount'] : null;
+            $filter_max_amount = (isset($_GET['filter_max_amount']) && $_GET['filter_max_amount'] !== '')
+                                    ? (float) $_GET['filter_max_amount'] : null;
+            $filter_date_from  = !empty($_GET['filter_date_from']) ? trim($_GET['filter_date_from'])    : null;
+            $filter_date_to    = !empty($_GET['filter_date_to'])   ? trim($_GET['filter_date_to'])      : null;
+            $filter_search     = !empty($_GET['filter_search'])    ? trim($_GET['filter_search'])       : null;
+
+            // Validar fechas de filtro si se proporcionan
+            if ($filter_date_from && !validateDate($filter_date_from)) {
+                throw new Exception('El formato de fecha de inicio no es válido (YYYY-MM-DD).');
+            }
+            if ($filter_date_to && !validateDate($filter_date_to)) {
+                throw new Exception('El formato de fecha de fin no es válido (YYYY-MM-DD).');
+            }
+            if ($filter_date_from && $filter_date_to && $filter_date_from > $filter_date_to) {
+                throw new Exception('La fecha de inicio no puede ser posterior a la fecha de fin.');
+            }
 
             $allowed_limits = [10, 25, 50, 100];
-            $limit  = in_array((int) ($_GET['limit'] ?? 10), $allowed_limits) ? (int) $_GET['limit'] : 10;
+            $limit  = in_array((int) ($_GET['limit'] ?? 10), $allowed_limits, true) ? (int) $_GET['limit'] : 10;
             $page   = max(1, (int) ($_GET['page'] ?? 1));
             $offset = ($page - 1) * $limit;
 
             // Construir WHERE dinámico
-            $where  = ["t.user_id = ?"];
+            $where  = ['t.user_id = ?'];
             $params = [$user_id];
 
-            if ($filter_account) { $where[] = "t.account_id = ?";           $params[] = $filter_account; }
-            if ($filter_category) { $where[] = "t.category_id = ?";         $params[] = $filter_category; }
-            if ($filter_type && in_array($filter_type, ['income','expense','transfer'])) {
-                $where[] = "t.type = ?"; $params[] = $filter_type;
+            if ($filter_account !== null) {
+                $where[]  = 't.account_id = ?';
+                $params[] = $filter_account;
             }
-            if ($filter_min_amount !== null) { $where[] = "t.converted_amount_dop >= ?"; $params[] = $filter_min_amount; }
-            if ($filter_max_amount !== null) { $where[] = "t.converted_amount_dop <= ?"; $params[] = $filter_max_amount; }
-            if ($filter_date_from) { $where[] = "t.date >= ?"; $params[] = $filter_date_from; }
-            if ($filter_date_to)   { $where[] = "t.date <= ?"; $params[] = $filter_date_to; }
-            if ($filter_search) {
-                $where[]  = "(t.description LIKE ? OR a.name LIKE ? OR c.name LIKE ?)";
-                $like     = "%{$filter_search}%";
-                $params[] = $like; $params[] = $like; $params[] = $like;
+            if ($filter_category !== null) {
+                $where[]  = 't.category_id = ?';
+                $params[] = $filter_category;
+            }
+            if ($filter_type !== null && in_array($filter_type, VALID_TYPES, true)) {
+                $where[]  = 't.type = ?';
+                $params[] = $filter_type;
+            }
+            if ($filter_min_amount !== null) {
+                $where[]  = 't.converted_amount_dop >= ?';
+                $params[] = $filter_min_amount;
+            }
+            if ($filter_max_amount !== null) {
+                $where[]  = 't.converted_amount_dop <= ?';
+                $params[] = $filter_max_amount;
+            }
+            if ($filter_date_from) {
+                $where[]  = 't.date >= ?';
+                $params[] = $filter_date_from;
+            }
+            if ($filter_date_to) {
+                $where[]  = 't.date <= ?';
+                $params[] = $filter_date_to;
+            }
+            if ($filter_search !== null && $filter_search !== '') {
+                $where[]  = '(t.description LIKE ? OR a.name LIKE ? OR c.name LIKE ?)';
+                $like     = '%' . $filter_search . '%';
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
             }
 
             $where_clause = implode(' AND ', $where);
 
-            // Contar total
-            $count_stmt = $pdo->prepare("SELECT COUNT(*) FROM transactions t
-                LEFT JOIN accounts a    ON t.account_id   = a.id
-                LEFT JOIN categories c  ON t.category_id  = c.id
-                WHERE {$where_clause}");
+            // Contar total de registros
+            $count_stmt = $pdo->prepare("
+                SELECT COUNT(*)
+                FROM transactions t
+                LEFT JOIN accounts a   ON t.account_id  = a.id
+                LEFT JOIN categories c ON t.category_id = c.id
+                WHERE {$where_clause}
+            ");
             $count_stmt->execute($params);
             $total_records = (int) $count_stmt->fetchColumn();
-            $total_pages   = $limit > 0 ? (int) ceil($total_records / $limit) : 1;
+            $total_pages   = $total_records > 0 ? (int) ceil($total_records / $limit) : 1;
 
-            // Listar con paginación
+            // Listar con paginación — bindValue separado para LIMIT/OFFSET (siempre enteros)
             $list_stmt = $pdo->prepare("
-                SELECT t.*, a.name AS account_name, a.currency_code,
-                       c.name AS category_name, curr.symbol
+                SELECT t.*,
+                       a.name         AS account_name,
+                       a.currency_code,
+                       c.name         AS category_name,
+                       curr.symbol
                 FROM transactions t
-                LEFT JOIN accounts a    ON t.account_id        = a.id
-                LEFT JOIN categories c  ON t.category_id       = c.id
+                LEFT JOIN accounts   a    ON t.account_id        = a.id
+                LEFT JOIN categories c    ON t.category_id       = c.id
                 LEFT JOIN currencies curr ON t.original_currency = curr.code
                 WHERE {$where_clause}
-                ORDER BY t.id DESC
+                ORDER BY t.date DESC, t.id DESC
                 LIMIT ? OFFSET ?
             ");
 
+            // Bind de parámetros de filtro
             $i = 1;
             foreach ($params as $p) {
                 $list_stmt->bindValue($i++, $p, is_int($p) ? PDO::PARAM_INT : PDO::PARAM_STR);
@@ -93,28 +187,38 @@ try {
             ]);
             break;
 
-        // ============================================
+        // ============================================================
         // OBTENER DATOS PARA MODALES (cuentas, categorías, monedas)
-        // ============================================
+        // ============================================================
         case 'get_form_data':
-            $stmt = $pdo->prepare("
+            // Una sola consulta para categorías de ingreso y gasto usando UNION
+            $stmt_accounts = $pdo->prepare("
                 SELECT a.*, c.symbol, c.exchange_rate_to_dop
                 FROM accounts a
                 JOIN currencies c ON a.currency_code = c.code
-                WHERE a.user_id = ? AND a.type NOT IN ('debit_card','credit_card')
+                WHERE a.user_id = ?
+                  AND a.type NOT IN ('debit_card', 'credit_card')
+                ORDER BY a.name ASC
             ");
-            $stmt->execute([$user_id]);
-            $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt_accounts->execute([$user_id]);
+            $accounts = $stmt_accounts->fetchAll(PDO::FETCH_ASSOC);
 
-            $stmt2 = $pdo->prepare("SELECT * FROM categories WHERE user_id = ? AND type = 'income' ORDER BY name");
-            $stmt2->execute([$user_id]);
-            $income_categories = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+            $stmt_cats = $pdo->prepare("
+                SELECT *, type AS category_type
+                FROM categories
+                WHERE user_id = ?
+                  AND type IN ('income', 'expense')
+                ORDER BY type ASC, name ASC
+            ");
+            $stmt_cats->execute([$user_id]);
+            $all_cats = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
 
-            $stmt3 = $pdo->prepare("SELECT * FROM categories WHERE user_id = ? AND type = 'expense' ORDER BY name");
-            $stmt3->execute([$user_id]);
-            $expense_categories = $stmt3->fetchAll(PDO::FETCH_ASSOC);
+            // Separar en PHP (evita dos round-trips a la BD)
+            $income_categories  = array_values(array_filter($all_cats, fn($c) => $c['type'] === 'income'));
+            $expense_categories = array_values(array_filter($all_cats, fn($c) => $c['type'] === 'expense'));
 
-            $all_currencies = $pdo->query("SELECT * FROM currencies")->fetchAll(PDO::FETCH_ASSOC);
+            $all_currencies = $pdo->query("SELECT * FROM currencies ORDER BY code ASC")
+                                  ->fetchAll(PDO::FETCH_ASSOC);
 
             echo json_encode([
                 'success'            => true,
@@ -125,38 +229,40 @@ try {
             ]);
             break;
 
-        // ============================================
+        // ============================================================
         // AGREGAR TRANSACCIÓN
-        // ============================================
+        // ============================================================
         case 'add_transaction':
-            $account_id       = (int) ($_POST['account_id'] ?? 0);
-            $category_id      = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
-            $type             = trim($_POST['type'] ?? '');
-            $amount           = (float) ($_POST['amount'] ?? 0);
-            $date             = trim($_POST['date'] ?? '');
-            $description      = trim($_POST['description'] ?? '');
-            $transfer_to      = !empty($_POST['transfer_to']) ? (int) $_POST['transfer_to'] : null;
+            $account_id       = (int)   ($_POST['account_id']        ?? 0);
+            $category_id      = !empty($_POST['category_id'])  ? (int)  $_POST['category_id']  : null;
+            $type             = trim(   $_POST['type']                ?? '');
+            $amount           = (float) ($_POST['amount']            ?? 0);
+            $date             = trim(   $_POST['date']               ?? '');
+            $description      = trim(   $_POST['description']        ?? '');
+            $transfer_to      = !empty($_POST['transfer_to'])  ? (int)  $_POST['transfer_to']  : null;
             $payment_currency = !empty($_POST['payment_currency']) ? trim($_POST['payment_currency']) : null;
 
-            if ($amount <= 0) throw new Exception('El monto debe ser mayor a 0.');
-            if (!in_array($type, ['income', 'expense', 'transfer'])) throw new Exception('Tipo de transacción inválido.');
-            if (empty($date)) throw new Exception('La fecha es obligatoria.');
+            // Validaciones previas a la transacción
+            if ($account_id <= 0)                         throw new Exception('Cuenta de origen no válida.');
+            if ($amount <= 0)                             throw new Exception('El monto debe ser mayor a 0.');
+            if (!in_array($type, VALID_TYPES, true))      throw new Exception('Tipo de transacción inválido.');
+            if ($date === '' || !validateDate($date))     throw new Exception('La fecha no es válida (YYYY-MM-DD).');
+            if ($type === 'transfer' && !$transfer_to)    throw new Exception('Debes indicar la cuenta destino para la transferencia.');
+            if ($type === 'transfer' && $transfer_to === $account_id) {
+                throw new Exception('La cuenta origen y destino no pueden ser la misma.');
+            }
+            if (in_array($type, ['expense', 'income'], true) && !$category_id) {
+                throw new Exception('La categoría es obligatoria para ingresos y gastos.');
+            }
 
             $pdo->beginTransaction();
 
-            $stmt = $pdo->prepare("
-                SELECT a.*, c.exchange_rate_to_dop
-                FROM accounts a
-                JOIN currencies c ON a.currency_code = c.code
-                WHERE a.id = ?
-            ");
-            $stmt->execute([$account_id]);
-            $account = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$account) throw new Exception('Cuenta no encontrada.');
-
+            // Obtener cuenta origen con bloqueo
+            $account          = fetchAccountOrFail($pdo, $account_id, $user_id, lock: true);
             $account_currency = $account['currency_code'];
             $original_currency = $payment_currency ?: $account_currency;
 
+            // Calcular montos según moneda de pago
             if ($payment_currency && $payment_currency !== $account_currency) {
                 $rate             = getExchangeRate($pdo, $payment_currency, $account_currency);
                 $converted_amount = $amount * $rate;
@@ -166,14 +272,23 @@ try {
                 $original_amount  = $amount;
             }
 
+            // Verificar saldo suficiente para gastos y transferencias
+            if (in_array($type, ['expense', 'transfer'], true)) {
+                if ((float) $account['balance'] < $converted_amount) {
+                    throw new Exception('Saldo insuficiente en la cuenta de origen.');
+                }
+            }
+
             $amount_dop = convertAmount($converted_amount, $account_currency, 'DOP', $pdo);
 
-            $stmt = $pdo->prepare("
+            // Insertar transacción
+            $pdo->prepare("
                 INSERT INTO transactions
-                    (user_id, account_id, category_id, type, amount, original_amount, original_currency, converted_amount_dop, date, description, transfer_to_account)
+                    (user_id, account_id, category_id, type, amount,
+                     original_amount, original_currency, converted_amount_dop,
+                     date, description, transfer_to_account)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-            $stmt->execute([
+            ")->execute([
                 $user_id, $account_id, $category_id, $type,
                 $converted_amount, $original_amount, $original_currency,
                 $amount_dop, $date, $description,
@@ -181,49 +296,84 @@ try {
             ]);
             $new_id = (int) $pdo->lastInsertId();
 
+            // Actualizar saldo(s) de cuenta(s)
             if ($type === 'income') {
-                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?")->execute([$converted_amount, $account_id]);
+                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                    ->execute([$converted_amount, $account_id, $user_id]);
+
             } elseif ($type === 'expense') {
-                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ?")->execute([$converted_amount, $account_id]);
-            } elseif ($type === 'transfer' && $transfer_to) {
-                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ?")->execute([$converted_amount, $account_id]);
-                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?")->execute([$converted_amount, $transfer_to]);
+                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ? AND user_id = ?")
+                    ->execute([$converted_amount, $account_id, $user_id]);
+
+            } elseif ($type === 'transfer') {
+                // Bloquear cuenta destino antes de modificarla
+                $dest = fetchAccountOrFail($pdo, $transfer_to, $user_id, lock: true);
+
+                // Convertir al currency de la cuenta destino si difiere
+                $amount_for_dest = $account_currency !== $dest['currency_code']
+                    ? $converted_amount * getExchangeRate($pdo, $account_currency, $dest['currency_code'])
+                    : $converted_amount;
+
+                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ? AND user_id = ?")
+                    ->execute([$converted_amount, $account_id, $user_id]);
+
+                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                    ->execute([$amount_for_dest, $transfer_to, $user_id]);
             }
 
             $pdo->commit();
 
             $symbol = getCurrencySymbol($original_currency);
             echo json_encode([
-                'success'    => true,
-                'message'    => "Transacción registrada por {$symbol} " . number_format($original_amount, 2),
-                'new_id'     => $new_id,
+                'success' => true,
+                'message' => "Transacción registrada por {$symbol} " . number_format($original_amount, 2),
+                'new_id'  => $new_id,
             ]);
             break;
 
-        // ============================================
+        // ============================================================
         // ELIMINAR TRANSACCIÓN
-        // ============================================
+        // ============================================================
         case 'delete_transaction':
             $delete_id = (int) ($_POST['transaction_id'] ?? 0);
-            if (!$delete_id) throw new Exception('ID de transacción inválido.');
 
-            $stmt = $pdo->prepare("SELECT * FROM transactions WHERE id = ? AND user_id = ?");
-            $stmt->execute([$delete_id, $user_id]);
-            $trans = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$trans) throw new Exception('Transacción no encontrada o sin permiso para eliminarla.');
+            if ($delete_id <= 0) throw new Exception('ID de transacción inválido.');
 
             $pdo->beginTransaction();
 
+            // Leer y bloquear la transacción
+            $stmt = $pdo->prepare("
+                SELECT * FROM transactions
+                WHERE id = ? AND user_id = ?
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute([$delete_id, $user_id]);
+            $trans = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$trans) throw new Exception('Transacción no encontrada o sin permiso para eliminarla.');
+
+            // Revertir el efecto en saldo(s) de cuenta(s)
             if ($trans['type'] === 'income') {
-                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ?")->execute([$trans['amount'], $trans['account_id']]);
+                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ? AND user_id = ?")
+                    ->execute([$trans['amount'], $trans['account_id'], $user_id]);
+
             } elseif ($trans['type'] === 'expense') {
-                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?")->execute([$trans['amount'], $trans['account_id']]);
+                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                    ->execute([$trans['amount'], $trans['account_id'], $user_id]);
+
             } elseif ($trans['type'] === 'transfer' && $trans['transfer_to_account']) {
-                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ?")->execute([$trans['amount'], $trans['account_id']]);
-                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ?")->execute([$trans['amount'], $trans['transfer_to_account']]);
+                // Revertir en ambas cuentas — deben pertenecer al usuario
+                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                    ->execute([$trans['amount'], $trans['account_id'], $user_id]);
+
+                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ? AND user_id = ?")
+                    ->execute([$trans['amount'], $trans['transfer_to_account'], $user_id]);
             }
 
-            $pdo->prepare("DELETE FROM transactions WHERE id = ?")->execute([$delete_id]);
+            $pdo->prepare("DELETE FROM transactions WHERE id = ? AND user_id = ?")
+                ->execute([$delete_id, $user_id]);
+
             $pdo->commit();
 
             echo json_encode([
@@ -233,23 +383,33 @@ try {
             ]);
             break;
 
+        // ============================================================
+        // ACCIÓN NO RECONOCIDA
+        // ============================================================
         default:
-            throw new Exception("Acción '{$action}' no reconocida.");
+            $safe = htmlspecialchars($action, ENT_QUOTES, 'UTF-8');
+            throw new Exception("Acción '{$safe}' no reconocida.");
     }
 
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    $full = 'PDOException: ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine();
+
+    $full = 'PDOException [' . $e->getCode() . ']: ' . $e->getMessage()
+          . ' | ' . $e->getFile() . ':' . $e->getLine();
+
     echo json_encode([
         'success'      => false,
-        'message'      => 'Error en la base de datos. Revisa la consola.',
+        'message'      => 'Error en la base de datos. Por favor, inténtalo de nuevo.',
         'full_message' => $full,
     ]);
+
 } catch (Exception $e) {
-    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
+    if ($pdo->inTransaction()) $pdo->rollBack();
+
     echo json_encode([
         'success'      => false,
         'message'      => $e->getMessage(),
-        'full_message' => 'Exception: ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine(),
+        'full_message' => 'Exception: ' . $e->getMessage()
+                        . ' | ' . $e->getFile() . ':' . $e->getLine(),
     ]);
 }

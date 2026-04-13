@@ -6,32 +6,39 @@ redirectIfNotLoggedIn();
 
 header('Content-Type: application/json');
 
+// 1. SEGURIDAD: Solo permitir peticiones POST para acciones que modifican datos
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Método no permitido. Use POST.']);
+    exit;
+}
+
 $user_id = $_SESSION['user_id'];
-$action  = $_POST['action'] ?? $_GET['action'] ?? '';
+$action  = $_POST['action'] ?? '';
+$response = [];
 
 try {
+    // 2. INICIAR TRANSACCIÓN
+    $pdo->beginTransaction();
+
     switch ($action) {
 
         // ============================================
         // AGREGAR RECORDATORIO
         // ============================================
         case 'add':
-            $title        = trim($_POST['title'] ?? '');
-            $description  = trim($_POST['description'] ?? '');
+            $title         = trim($_POST['title'] ?? '');
+            $description   = trim($_POST['description'] ?? '');
             $reminder_date = $_POST['reminder_date'] ?? '';
             $is_recurring  = isset($_POST['is_recurring']) ? 1 : 0;
             $recurrence    = $_POST['recurrence'] ?? null;
 
+            // Validaciones centralizadas
             if (empty($title)) {
-                http_response_code(422);
-                echo json_encode(['success' => false, 'message' => 'El título es requerido']);
-                exit;
+                throw new Exception('El título es requerido', 422);
             }
-
             if (empty($reminder_date)) {
-                http_response_code(422);
-                echo json_encode(['success' => false, 'message' => 'La fecha es requerida']);
-                exit;
+                throw new Exception('La fecha es requerida', 422);
             }
 
             $stmt = $pdo->prepare("
@@ -39,9 +46,10 @@ try {
                 VALUES (?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([$user_id, $title, $description, $reminder_date, $is_recurring, $recurrence]);
+            
             $new_id = $pdo->lastInsertId();
 
-            echo json_encode([
+            $response = [
                 'success' => true,
                 'message' => 'Recordatorio creado correctamente',
                 'reminder' => [
@@ -53,86 +61,94 @@ try {
                     'recurrence_interval' => $recurrence,
                     'completed'           => 0,
                 ]
-            ]);
+            ];
             break;
 
         // ============================================
         // COMPLETAR RECORDATORIO
         // ============================================
         case 'complete':
-            $reminder_id = $_POST['id'] ?? $_GET['id'] ?? null;
+            $reminder_id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);
 
             if (!$reminder_id) {
-                http_response_code(422);
-                echo json_encode(['success' => false, 'message' => 'ID de recordatorio no especificado']);
-                exit;
+                throw new Exception('ID de recordatorio no válido o no especificado', 422);
             }
 
             $stmt = $pdo->prepare("UPDATE reminders SET completed = 1 WHERE id = ? AND user_id = ?");
             $stmt->execute([$reminder_id, $user_id]);
 
             if ($stmt->rowCount() === 0) {
-                http_response_code(404);
-                echo json_encode(['success' => false, 'message' => 'Recordatorio no encontrado']);
-                exit;
+                throw new Exception('Recordatorio no encontrado o ya completado', 404);
             }
 
-            // Devolver datos del recordatorio recién completado para moverlo al historial en el frontend
-            $stmt = $pdo->prepare("SELECT * FROM reminders WHERE id = ?");
-            $stmt->execute([$reminder_id]);
+            // 3. SEGURIDAD CORREGIDA: Se añade user_id al SELECT para evitar fugas de datos
+            $stmt = $pdo->prepare("SELECT * FROM reminders WHERE id = ? AND user_id = ?");
+            $stmt->execute([$reminder_id, $user_id]);
             $completed = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            echo json_encode([
+            $response = [
                 'success'  => true,
                 'message'  => 'Recordatorio marcado como completado',
                 'reminder' => $completed,
-            ]);
+            ];
             break;
 
         // ============================================
         // ELIMINAR RECORDATORIO
         // ============================================
         case 'delete':
-            $reminder_id = $_POST['id'] ?? $_GET['id'] ?? null;
+            $reminder_id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);
 
             if (!$reminder_id) {
-                http_response_code(422);
-                echo json_encode(['success' => false, 'message' => 'ID de recordatorio no especificado']);
-                exit;
+                throw new Exception('ID de recordatorio no válido o no especificado', 422);
             }
 
             $stmt = $pdo->prepare("DELETE FROM reminders WHERE id = ? AND user_id = ?");
             $stmt->execute([$reminder_id, $user_id]);
 
             if ($stmt->rowCount() === 0) {
-                http_response_code(404);
-                echo json_encode(['success' => false, 'message' => 'Recordatorio no encontrado']);
-                exit;
+                throw new Exception('Recordatorio no encontrado o no tienes permisos', 404);
             }
 
-            echo json_encode([
+            $response = [
                 'success' => true,
                 'message' => 'Recordatorio eliminado correctamente',
                 'id'      => $reminder_id,
-            ]);
+            ];
             break;
 
         // ============================================
         // ACCIÓN DESCONOCIDA
         // ============================================
         default:
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => "Acción desconocida: '$action'"]);
-            break;
+            throw new Exception("Acción desconocida: '$action'", 400);
     }
 
+    // 4. CONFIRMAR TRANSACCIÓN SI TODO SALIÓ BIEN
+    $pdo->commit();
+    echo json_encode($response);
+
 } catch (Exception $e) {
+    // 5. REVERTIR CAMBIOS SI HUBO UN ERROR (Incluso si fue una validación fallida)
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+    $errorCode = $e->getCode();
+    // Asegurar que el código sea un HTTP status válido (por defecto 500 si la BD falla)
+    $httpCode = ($errorCode >= 400 && $errorCode < 600) ? $errorCode : 500;
+    
     $errorMsg = $e->getMessage();
-    error_log("[reminders.ajax] ERROR: $errorMsg");
-    http_response_code(500);
+    
+    if ($httpCode === 500) {
+        error_log("[reminders.ajax] ERROR: $errorMsg"); // Guardar error real en el log del servidor
+    }
+
+    http_response_code($httpCode);
     echo json_encode([
         'success' => false,
-        'message' => 'Error interno del servidor',
-        'debug'   => $errorMsg, // El frontend lo imprime en consola
+        // Mostrar mensaje genérico para errores 500, o el mensaje de validación para errores 4xx
+        'message' => $httpCode === 500 ? 'Error interno del servidor al procesar la solicitud.' : $errorMsg,
+        'debug'   => $httpCode === 500 ? $errorMsg : null 
     ]);
 }

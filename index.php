@@ -214,7 +214,7 @@ if (isLoggedIn()) {
 // ═══════════════════════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════════════════════
-const API            = 'ajax/auth.php';   // ← único punto de contacto con el backend
+const API            = 'ajax/auth.php';
 const MAX_ATTEMPTS   = 5;
 const LOCKOUT_MS     = 5 * 60 * 1000;    // 5 min bloqueo login
 const REG_COOLDOWN   = 5 * 60 * 1000;    // 5 min entre registros por dispositivo

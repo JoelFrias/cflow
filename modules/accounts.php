@@ -120,10 +120,6 @@ $currencies = $stmt->fetchAll();
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label>Saldo actual</label>
-                    <input type="number" step="0.01" id="edit-acc-balance" class="form-control" required>
-                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -573,7 +569,6 @@ function openEditModal(account) {
     document.getElementById('edit-acc-name').value        = account.name;
     document.getElementById('edit-acc-type').value        = account.type;
     document.getElementById('edit-acc-currency').value    = account.currency_code;
-    document.getElementById('edit-acc-balance').value     = account.balance;
 
     const editModal = new bootstrap.Modal(document.getElementById('editAccountModal'));
     editModal.show();
@@ -633,7 +628,6 @@ document.getElementById('btn-update-account').addEventListener('click', function
     const name      = document.getElementById('edit-acc-name').value.trim();
     const type      = document.getElementById('edit-acc-type').value;
     const currency  = document.getElementById('edit-acc-currency').value;
-    const balance   = document.getElementById('edit-acc-balance').value;
 
     if (!name) {
         showError('El nombre de la cuenta es obligatorio.');
@@ -651,8 +645,7 @@ document.getElementById('btn-update-account').addEventListener('click', function
         account_id:    accountId,
         name:          name,
         type:          type,
-        currency_code: currency,
-        balance:       balance
+        currency_code: currency
     });
 
     fetch(ACCOUNTS_AJAX_URL, {
