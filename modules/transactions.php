@@ -1,5 +1,5 @@
 <?php
-// modules/transactions.php - Módulo principal de transacciones, incluye filtros avanzados, tabla, paginación y modal para agregar transacciones.
+// modules/transactions.php
 
 $ajax_url          = 'ajax/transactions.php';
 $ajax_category_url = 'ajax/create_category.php';
@@ -20,7 +20,6 @@ $ajax_category_url = 'ajax/create_category.php';
     </div>
     <div class="card-body" id="filtersPanel" style="display:none;">
         <div class="row g-3">
-            <!-- Buscador -->
             <div class="col-md-12">
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-search"></i></span>
@@ -30,14 +29,12 @@ $ajax_category_url = 'ajax/create_category.php';
                     </button>
                 </div>
             </div>
-            <!-- Cuenta -->
             <div class="col-md-3">
                 <label class="form-label small text-muted">Cuenta</label>
                 <select id="filter-account" class="form-select">
                     <option value="">Todas las cuentas</option>
                 </select>
             </div>
-            <!-- Categoría -->
             <div class="col-md-3">
                 <label class="form-label small text-muted">Categoría</label>
                 <select id="filter-category" class="form-select">
@@ -46,7 +43,6 @@ $ajax_category_url = 'ajax/create_category.php';
                     <optgroup label="📉 Gastos"   id="filter-expense-group"></optgroup>
                 </select>
             </div>
-            <!-- Tipo -->
             <div class="col-md-3">
                 <label class="form-label small text-muted">Tipo</label>
                 <select id="filter-type" class="form-select">
@@ -56,7 +52,6 @@ $ajax_category_url = 'ajax/create_category.php';
                     <option value="transfer">Transferencias</option>
                 </select>
             </div>
-            <!-- Fechas -->
             <div class="col-md-3">
                 <label class="form-label small text-muted">Rango de Fechas</label>
                 <div class="input-group">
@@ -65,7 +60,6 @@ $ajax_category_url = 'ajax/create_category.php';
                     <input type="date" id="filter-date-to"   class="form-control" placeholder="Hasta">
                 </div>
             </div>
-            <!-- Monto -->
             <div class="col-md-4">
                 <label class="form-label small text-muted">Monto (RD$)</label>
                 <div class="input-group">
@@ -75,7 +69,6 @@ $ajax_category_url = 'ajax/create_category.php';
                     <input type="number" step="0.01" id="filter-max-amount" class="form-control" placeholder="999999.99">
                 </div>
             </div>
-            <!-- Botones -->
             <div class="col-md-8 d-flex align-items-end">
                 <div class="btn-group w-100">
                     <button type="button" class="btn btn-primary" onclick="TransactionModule.applyFilters()">
@@ -151,39 +144,35 @@ $ajax_category_url = 'ajax/create_category.php';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- Tipo -->
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Tipo de Transacción</label>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="transaction-type-card income-card selected" id="labelIncome">
+
+                <!-- ── Tipo ── siempre 3 columnas, compacto ── -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Tipo de Transacción</label>
+                    <div class="row g-2 tx-type-row">
+                        <div class="col-4">
+                            <label class="tx-type-card income-card selected" id="labelIncome">
                                 <input type="radio" name="type" value="income" class="d-none" id="typeIncome" checked>
-                                <div class="card-body text-center p-3">
-                                    <i class="fas fa-arrow-down text-success fa-2x mb-2"></i>
-                                    <h6 class="mb-1 text-success">Ingreso</h6>
-                                </div>
+                                <i class="fas fa-arrow-down tx-icon text-success"></i>
+                                <span class="tx-label text-success">Ingreso</span>
                             </label>
                         </div>
-                        <div class="col-md-4">
-                            <label class="transaction-type-card expense-card" id="labelExpense">
+                        <div class="col-4">
+                            <label class="tx-type-card expense-card" id="labelExpense">
                                 <input type="radio" name="type" value="expense" class="d-none" id="typeExpense">
-                                <div class="card-body text-center p-3">
-                                    <i class="fas fa-arrow-up text-danger fa-2x mb-2"></i>
-                                    <h6 class="mb-1 text-danger">Gasto</h6>
-                                </div>
+                                <i class="fas fa-arrow-up tx-icon text-danger"></i>
+                                <span class="tx-label text-danger">Gasto</span>
                             </label>
                         </div>
-                        <div class="col-md-4">
-                            <label class="transaction-type-card transfer-card" id="labelTransfer">
+                        <div class="col-4">
+                            <label class="tx-type-card transfer-card" id="labelTransfer">
                                 <input type="radio" name="type" value="transfer" class="d-none" id="typeTransfer">
-                                <div class="card-body text-center p-3">
-                                    <i class="fas fa-exchange-alt text-primary fa-2x mb-2"></i>
-                                    <h6 class="mb-1 text-primary">Transferencia</h6>
-                                </div>
+                                <i class="fas fa-exchange-alt tx-icon text-primary"></i>
+                                <span class="tx-label text-primary">Transferencia</span>
                             </label>
                         </div>
                     </div>
                 </div>
+
                 <!-- Cuenta origen -->
                 <div class="mb-3">
                     <label class="form-label">Cuenta Origen</label>
@@ -191,6 +180,7 @@ $ajax_category_url = 'ajax/create_category.php';
                         <option value="">Seleccionar cuenta</option>
                     </select>
                 </div>
+
                 <!-- Cuenta destino (solo transferencia) -->
                 <div class="mb-3 d-none" id="transferToDiv">
                     <label class="form-label">Cuenta Destino</label>
@@ -198,6 +188,7 @@ $ajax_category_url = 'ajax/create_category.php';
                         <option value="">Seleccionar cuenta destino</option>
                     </select>
                 </div>
+
                 <!-- Categoría -->
                 <div class="mb-3">
                     <label class="form-label">Categoría</label>
@@ -214,36 +205,23 @@ $ajax_category_url = 'ajax/create_category.php';
                     </div>
                     <small class="text-muted">Las categorías se filtran según el tipo de transacción</small>
                 </div>
-                <!-- Moneda + Monto -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Moneda de Pago</label>
-                            <select id="modal-payment-currency" class="form-control">
-                                <option value="">Misma que la cuenta</option>
-                            </select>
-                            <small class="text-muted">Si pagas en otra moneda, se convertirá automáticamente</small>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Monto</label>
-                            <input type="number" step="0.01" id="modal-amount" class="form-control" placeholder="0.00">
-                            <small id="conversionPreview" class="text-muted"></small>
-                        </div>
-                    </div>
-                </div>
-                <!-- Fecha -->
+
+                <!-- Monto -->
                 <div class="mb-3">
-                    <label class="form-label">Fecha</label>
-                    <input type="date" id="modal-date" class="form-control">
+                    <label class="form-label">Monto</label>
+                    <input type="number" step="0.01" id="modal-amount" class="form-control" placeholder="0.00">
                 </div>
+
                 <!-- Descripción -->
-                <div class="mb-3">
-                    <label class="form-label">Descripción</label>
+                <div class="mb-1">
+                    <label class="form-label">Descripción <small class="text-muted fw-normal">(opcional)</small></label>
                     <textarea id="modal-description" class="form-control" rows="2"
-                              placeholder="Opcional - Ej: Compra en supermercado, Pago de luz..."></textarea>
+                              placeholder="Ej: Compra en supermercado, Pago de luz..."></textarea>
                 </div>
+
+                <!-- Fecha oculta — se asigna automáticamente al abrir el modal -->
+                <input type="hidden" id="modal-date">
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -290,18 +268,51 @@ $ajax_category_url = 'ajax/create_category.php';
 </div>
 
 <style>
-.transaction-type-card {
+/* ── Selector de tipo: siempre 3 columnas, compacto ── */
+.tx-type-card {
     cursor: pointer;
-    border-radius: 12px;
-    transition: all 0.3s ease;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
     background-color: #f8f9fa;
-    border: 2px solid transparent;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    gap: 4px;
+    transition: border-color .2s, background .2s, transform .15s, box-shadow .2s;
+    user-select: none;
+    width: 100%;
 }
-.transaction-type-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,.1); }
+.tx-type-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,.1);
+}
+.tx-icon {
+    font-size: 1.1rem;
+}
+.tx-label {
+    font-size: .78rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* Estados seleccionados */
 .income-card.selected   { border-color: #28a745; background: linear-gradient(135deg,#d4edda,#c3e6cb); }
 .expense-card.selected  { border-color: #dc3545; background: linear-gradient(135deg,#f8d7da,#f5c6cb); }
 .transfer-card.selected { border-color: #0d6efd; background: linear-gradient(135deg,#cfe2ff,#b6d4fe); }
+
+/* Hover colorizado (sin estar seleccionado) */
+.income-card:not(.selected):hover   { border-color: #28a745; background-color: #e8f5e9; }
+.expense-card:not(.selected):hover  { border-color: #dc3545; background-color: #fdecea; }
+.transfer-card:not(.selected):hover { border-color: #0d6efd; background-color: #e8f0fe; }
+
+/* En pantallas grandes los íconos pueden ser un poco más grandes */
+@media (min-width: 576px) {
+    .tx-type-card { padding: 10px 6px; }
+    .tx-icon      { font-size: 1.3rem; }
+    .tx-label     { font-size: .82rem; }
+}
 </style>
 
 <script>
@@ -310,7 +321,6 @@ const TransactionModule = (() => {
     const AJAX_URL     = '<?= $ajax_url ?>';
     const CAT_AJAX_URL = '<?= $ajax_category_url ?>';
 
-    // Estado de filtros y paginación
     let _state = {
         page: 1, limit: 10,
         filter_account: '', filter_category: '', filter_type: '',
@@ -318,11 +328,9 @@ const TransactionModule = (() => {
         filter_date_from: '', filter_date_to: '', filter_search: '',
     };
 
-    // Datos de formulario cargados desde el backend
-    let _accounts  = [];
-    let _incomeCats = [];
+    let _accounts    = [];
+    let _incomeCats  = [];
     let _expenseCats = [];
-    let _currencies = [];
 
     // ─── Utilidades ───────────────────────────────
 
@@ -491,7 +499,6 @@ const TransactionModule = (() => {
                     ? `Mostrando ${from}–${to} de ${data.total_records} registros`
                     : 'Sin resultados';
 
-            // Mostrar badge si hay filtros activos
             const hasFilters = Object.entries(_state)
                 .filter(([k]) => k.startsWith('filter_'))
                 .some(([, v]) => v !== '');
@@ -510,9 +517,7 @@ const TransactionModule = (() => {
             _accounts    = data.accounts;
             _incomeCats  = data.income_categories;
             _expenseCats = data.expense_categories;
-            _currencies  = data.currencies;
 
-            // Poblar selects del modal
             const accountOpts = _accounts.map(a =>
                 `<option value="${a.id}" data-currency="${a.currency_code}" data-symbol="${a.symbol}">
                     ${escHtml(a.name)} (${a.currency_code}) — Saldo: ${a.symbol} ${fmt(a.balance)}
@@ -520,23 +525,15 @@ const TransactionModule = (() => {
             document.getElementById('modal-account-id').innerHTML   = '<option value="">Seleccionar cuenta</option>' + accountOpts;
             document.getElementById('modal-transfer-to').innerHTML  = '<option value="">Seleccionar cuenta destino</option>' + accountOpts;
 
-            // Poblar select de filtro de cuentas
             document.getElementById('filter-account').innerHTML =
                 '<option value="">Todas las cuentas</option>' +
                 _accounts.map(a => `<option value="${a.id}">${escHtml(a.name)} (${a.currency_code})</option>`).join('');
 
-            // Categorías modal
             document.getElementById('modal-income-group').innerHTML  = _incomeCats.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
             document.getElementById('modal-expense-group').innerHTML = _expenseCats.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
 
-            // Categorías filtro
             document.getElementById('filter-income-group').innerHTML  = _incomeCats.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
             document.getElementById('filter-expense-group').innerHTML = _expenseCats.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
-
-            // Monedas
-            document.getElementById('modal-payment-currency').innerHTML =
-                '<option value="">Misma que la cuenta</option>' +
-                _currencies.map(c => `<option value="${c.code}">${escHtml(c.name)} (${c.symbol})</option>`).join('');
 
         } catch (err) {
             showError(err.message, err.fullMessage);
@@ -578,29 +575,28 @@ const TransactionModule = (() => {
     // ─── Agregar transacción ──────────────────────
 
     async function addTransaction() {
-        const type          = document.querySelector('input[name="type"]:checked')?.value;
-        const account_id    = document.getElementById('modal-account-id').value;
-        const transfer_to   = document.getElementById('modal-transfer-to').value;
-        const category_id   = document.getElementById('modal-category-id').value;
-        const payment_currency = document.getElementById('modal-payment-currency').value;
-        const amount        = document.getElementById('modal-amount').value;
-        const date          = document.getElementById('modal-date').value;
-        const description   = document.getElementById('modal-description').value;
+        const type        = document.querySelector('input[name="type"]:checked')?.value;
+        const account_id  = document.getElementById('modal-account-id').value;
+        const transfer_to = document.getElementById('modal-transfer-to').value;
+        const category_id = document.getElementById('modal-category-id').value;
+        const amount      = document.getElementById('modal-amount').value;
+        const date        = document.getElementById('modal-date').value;
+        const description = document.getElementById('modal-description').value;
 
         if (!account_id) { showError('Selecciona una cuenta de origen.'); return; }
         if (!amount || parseFloat(amount) <= 0) { showError('El monto debe ser mayor a 0.'); return; }
-        if (!date) { showError('La fecha es obligatoria.'); return; }
 
         try {
             const data = await request('add_transaction', {
                 account_id, category_id, type, amount, date, description,
-                transfer_to, payment_currency,
+                transfer_to,
+                // payment_currency vacío → el backend usa la moneda de la cuenta
+                payment_currency: '',
             });
 
             showSuccess(data.message);
             bootstrap.Modal.getInstance(document.getElementById('transactionModal'))?.hide();
 
-            // Limpiar modal
             document.getElementById('modal-amount').value      = '';
             document.getElementById('modal-description').value = '';
 
@@ -629,7 +625,6 @@ const TransactionModule = (() => {
                 showSuccess(data.message);
                 document.getElementById(`tr-${id}`)?.remove();
 
-                // Si la tabla quedó vacía, recargar
                 const tbody = document.querySelector('#transactions-table-container tbody');
                 if (tbody && tbody.children.length === 0) await loadTransactions();
             } catch (err) {
@@ -654,9 +649,7 @@ const TransactionModule = (() => {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({ name, type }),
             });
-            const raw  = await res.text();
-            const json = JSON.parse(raw);
-
+            const json = JSON.parse(await res.text());
             if (!json.success) throw Object.assign(new Error(json.message), { fullMessage: json.full_message ?? json.message });
 
             Swal.close();
@@ -664,22 +657,19 @@ const TransactionModule = (() => {
             bootstrap.Modal.getInstance(document.getElementById('quickCategoryModal'))?.hide();
             document.getElementById('quickCategoryName').value = '';
 
-            // Agregar al select del modal y a los filtros
             const opt = `<option value="${json.category_id}">${escHtml(name)}</option>`;
             if (type === 'income') {
                 document.getElementById('modal-income-group').insertAdjacentHTML('beforeend', opt);
                 document.getElementById('filter-income-group').insertAdjacentHTML('beforeend', opt);
                 _incomeCats.push({ id: json.category_id, name });
-                if (document.querySelector('input[name="type"]:checked')?.value === 'income') {
+                if (document.querySelector('input[name="type"]:checked')?.value === 'income')
                     document.getElementById('modal-category-id').value = json.category_id;
-                }
             } else {
                 document.getElementById('modal-expense-group').insertAdjacentHTML('beforeend', opt);
                 document.getElementById('filter-expense-group').insertAdjacentHTML('beforeend', opt);
                 _expenseCats.push({ id: json.category_id, name });
-                if (document.querySelector('input[name="type"]:checked')?.value === 'expense') {
+                if (document.querySelector('input[name="type"]:checked')?.value === 'expense')
                     document.getElementById('modal-category-id').value = json.category_id;
-                }
             }
         } catch (err) {
             Swal.close();
@@ -687,7 +677,7 @@ const TransactionModule = (() => {
         }
     }
 
-    // ─── Lógica del modal de transacción ─────────
+    // ─── Filtrar categorías según tipo ───────────
 
     function filterModalCategories(type) {
         const incG = document.getElementById('modal-income-group');
@@ -708,10 +698,10 @@ const TransactionModule = (() => {
 
     // ─── Event listeners ─────────────────────────
 
-    // Tipo de transacción
-    document.querySelectorAll('.transaction-type-card').forEach(card => {
+    // Selector de tipo
+    document.querySelectorAll('.tx-type-card').forEach(card => {
         card.addEventListener('click', () => {
-            document.querySelectorAll('.transaction-type-card').forEach(c => c.classList.remove('selected'));
+            document.querySelectorAll('.tx-type-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
             card.querySelector('input[type="radio"]').checked = true;
             const type = card.querySelector('input[type="radio"]').value;
@@ -720,35 +710,16 @@ const TransactionModule = (() => {
         });
     });
 
-    // Reset modal al abrirlo
+    // Reset modal + fecha automática al abrir
     document.getElementById('transactionModal').addEventListener('shown.bs.modal', () => {
-        document.querySelectorAll('.transaction-type-card').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.tx-type-card').forEach(c => c.classList.remove('selected'));
         document.getElementById('labelIncome').classList.add('selected');
         document.getElementById('typeIncome').checked = true;
         document.getElementById('transferToDiv').classList.add('d-none');
         filterModalCategories('income');
+        // Fecha de hoy automática
         document.getElementById('modal-date').value = new Date().toISOString().split('T')[0];
     });
-
-    // Preview de conversión
-    ['modal-payment-currency', 'modal-account-id', 'modal-amount'].forEach(id => {
-        document.getElementById(id)?.addEventListener('change', updateConversionPreview);
-    });
-    document.getElementById('modal-amount')?.addEventListener('keyup', updateConversionPreview);
-
-    function updateConversionPreview() {
-        const selOption      = document.getElementById('modal-account-id').selectedOptions[0];
-        const accountCurrency = selOption?.dataset.currency ?? '';
-        const paymentCurrency = document.getElementById('modal-payment-currency').value;
-        const amount          = document.getElementById('modal-amount').value;
-        const preview         = document.getElementById('conversionPreview');
-
-        if (amount && paymentCurrency && paymentCurrency !== accountCurrency && accountCurrency) {
-            preview.innerHTML = `<i class="fas fa-sync-alt"></i> Se convertirá de ${paymentCurrency} a ${accountCurrency} automáticamente`;
-        } else {
-            preview.innerHTML = '';
-        }
-    }
 
     // Botón limpiar búsqueda
     document.getElementById('filter-search').addEventListener('input', function () {
@@ -768,9 +739,9 @@ const TransactionModule = (() => {
 
     // Toggle filtros
     document.getElementById('toggleFiltersBtn').addEventListener('click', () => {
-        const panel = document.getElementById('filtersPanel');
-        const icon  = document.getElementById('filterToggleIcon');
-        const btn   = document.getElementById('toggleFiltersBtn');
+        const panel   = document.getElementById('filtersPanel');
+        const icon    = document.getElementById('filterToggleIcon');
+        const btn     = document.getElementById('toggleFiltersBtn');
         const visible = panel.style.display !== 'none';
         panel.style.display = visible ? 'none' : '';
         icon.className = visible ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
@@ -779,6 +750,7 @@ const TransactionModule = (() => {
 
     // ─── Init ─────────────────────────────────────
 
+    // Fecha inicial para cuando el modal ya estaba cargado en el DOM
     document.getElementById('modal-date').value = new Date().toISOString().split('T')[0];
 
     Promise.all([loadFormData(), loadTransactions()]);
