@@ -91,6 +91,13 @@ if (isLoggedIn()) {
             font-variant-numeric: tabular-nums;
             letter-spacing: .05em;
         }
+        @media (max-width: 600px) {
+            body.auth-body {
+                overflow-x: hidden;
+                height: auto;
+                min-height: 100vh;
+            }
+        }
     </style>
 </head>
 <body class="auth-body">
@@ -106,7 +113,7 @@ if (isLoggedIn()) {
                 </div>
                 <span class="auth-logo-name">CFlow</span>
             </div>
-            <p class="auth-logo-sub">Gestión de finanzas personales en DOP y USD</p>
+            <p class="auth-logo-sub">Gestión de finanzas personales.</p>
         </div>
 
         <!-- Tabs — idéntico al original -->

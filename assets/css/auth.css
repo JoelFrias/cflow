@@ -267,7 +267,9 @@
         background-image: none;
         background-color: #ffffff;
         padding: 0;
-        align-items: center; /* ← antes era flex-start */
+        align-items: flex-start;
+        min-height: 100vh;
+        height: auto;
     }
 
     .auth-page::before {
@@ -279,9 +281,8 @@
         border: none;
         box-shadow: none;
         min-height: 100vh;
+        height: auto;
         background: #ffffff;
-
-        /* ← agrega esto para centrar verticalmente el contenido dentro de la card */
         display: flex;
         flex-direction: column;
         justify-content: center;
