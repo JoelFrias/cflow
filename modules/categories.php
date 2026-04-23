@@ -60,7 +60,7 @@
                         <option value="expense">Gasto</option>
                     </select>
                 </div>
-                <div class="mb-3">
+                <div class="mb-3" style="display: none;">
                     <label class="form-label">Categoría Padre <span class="text-muted">(opcional)</span></label>
                     <select id="cat-parent" class="form-control">
                         <option value="">Ninguna</option>

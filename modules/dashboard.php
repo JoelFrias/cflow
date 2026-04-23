@@ -40,10 +40,7 @@
 
 /* ══ Encabezado ════════════════════════════════════════ */
 .db-head {
-  display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
   margin-bottom: 24px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--border);
@@ -415,7 +412,6 @@
 <!-- ════════════════════════════════════════════
      HTML
 ════════════════════════════════════════════ -->
-<div id="db">
 
   <!-- ── Encabezado + período ── -->
   <div class="db-head db-section">
@@ -441,7 +437,7 @@
     </div>
   </div>
 
-  <!-- ── TIP DEL DÍA ── (reducido, al final) -->
+  <!-- ── TIP DEL DÍA ── (reducido) -->
   <div class="db-section">
     <div class="tip">
       <i class="fas fa-lightbulb"></i>
@@ -457,6 +453,10 @@
         <div class="qa-icon blue"><i class="fas fa-plus"></i></div>
         <span class="qa-label">Nueva<br>Transacción</span>
       </a>
+      <a href="?module=accounts" class="qa-btn">
+        <div class="qa-icon purple"><i class="fas fa-wallet"></i></div>
+        <span class="qa-label">Ver<br>Cuentas</span>
+      </a>
       <a href="?module=debts" class="qa-btn">
         <div class="qa-icon red"><i class="fas fa-hand-holding-usd"></i></div>
         <span class="qa-label">Pagar<br>Deuda</span>
@@ -468,10 +468,6 @@
       <a href="?module=reminders" class="qa-btn">
         <div class="qa-icon amber"><i class="fas fa-bell"></i></div>
         <span class="qa-label">Recordatorio</span>
-      </a>
-      <a href="?module=accounts" class="qa-btn">
-        <div class="qa-icon purple"><i class="fas fa-wallet"></i></div>
-        <span class="qa-label">Ver<br>Cuentas</span>
       </a>
     </div>
   </div>
@@ -594,7 +590,6 @@
       </div>
     </div>
   </div>
-</div><!-- /#db -->
 
 
 <!-- ════════════════════════════════════════════

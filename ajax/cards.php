@@ -432,6 +432,94 @@ try {
             ]);
             break;
 
+        // ============================================
+        // ELIMINAR TRANSACCIÓN DE TARJETA (≤ 3 días)
+        // ============================================
+        case 'delete_card_transaction':
+            $transaction_id = (int)($_POST['transaction_id'] ?? 0);
+            $card_id        = (int)($_POST['card_id'] ?? 0);
+
+            if ($transaction_id <= 0) throw new Exception('ID de transacción inválido.');
+            if ($card_id <= 0)        throw new Exception('ID de tarjeta inválido.');
+
+            // Verificar propiedad de la tarjeta
+            $chk = $pdo->prepare("
+                SELECT id FROM accounts
+                WHERE id = ? AND user_id = ? AND type IN ('debit_card','credit_card')
+            ");
+            $chk->execute([$card_id, $user_id]);
+            if (!$chk->fetch()) throw new Exception('Tarjeta no encontrada o sin permiso.');
+
+            $pdo->beginTransaction();
+            try {
+                $stmt = $pdo->prepare("SELECT * FROM transactions WHERE id = ? AND user_id = ? FOR UPDATE");
+                $stmt->execute([$transaction_id, $user_id]);
+                $tx = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$tx) throw new Exception('Transacción no encontrada.');
+
+                // Verificar antigüedad ≤ 3 días (comparar date, no datetime)
+                $tz       = new DateTimeZone('-04:00');
+                $txDate   = new DateTime($tx['date'], $tz);
+                $today    = new DateTime('now', $tz);
+                $today->setTime(0, 0, 0);
+                $daysDiff = (int)$today->diff($txDate)->days;
+                if ($today < $txDate) $daysDiff = 0; // fecha futura = 0 días
+                if ($daysDiff > 3) {
+                    throw new Exception('Solo puedes eliminar transacciones con 3 días o menos de antigüedad.');
+                }
+
+                // Determinar si es gasto directo o pago a tarjeta
+                $pay_usd = (float)($tx['payment_usd_amount'] ?? 0);
+                $pay_dop_col = (float)($tx['payment_dop_amount'] ?? 0);
+
+                $is_expense = ((int)$tx['account_id'] === $card_id && $pay_usd == 0 && $pay_dop_col == 0);
+                $is_payment = ((int)$tx['transfer_to_account'] === $card_id);
+
+                if (!$is_expense && !$is_payment) {
+                    throw new Exception('Esta transacción no está vinculada a la tarjeta especificada.');
+                }
+
+                if ($is_expense) {
+                    // Revertir: reducir balance de la tarjeta
+                    $currency = $tx['original_currency'] ?? $tx['card_currency'] ?? 'DOP';
+                    if ($currency === 'USD') {
+                        $pdo->prepare("UPDATE accounts SET balance_usd = balance_usd - ? WHERE id = ? AND user_id = ?")
+                            ->execute([$tx['amount'], $card_id, $user_id]);
+                    } else {
+                        $pdo->prepare("UPDATE accounts SET balance_dop = balance_dop - ? WHERE id = ? AND user_id = ?")
+                            ->execute([$tx['amount'], $card_id, $user_id]);
+                    }
+                } else {
+                    // Revertir pago: devolver DOP a la cuenta de origen
+                    $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                        ->execute([$tx['amount'], $tx['account_id'], $user_id]);
+
+                    // Restaurar deuda en la tarjeta
+                    if ($pay_usd > 0) {
+                        $pdo->prepare("UPDATE accounts SET balance_usd = balance_usd + ? WHERE id = ? AND user_id = ?")
+                            ->execute([$pay_usd, $card_id, $user_id]);
+                    }
+                    if ($pay_dop_col > 0) {
+                        $pdo->prepare("UPDATE accounts SET balance_dop = balance_dop + ? WHERE id = ? AND user_id = ?")
+                            ->execute([$pay_dop_col, $card_id, $user_id]);
+                    }
+                }
+
+                $pdo->prepare("DELETE FROM transactions WHERE id = ? AND user_id = ?")
+                    ->execute([$transaction_id, $user_id]);
+
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Transacción eliminada y balances restaurados correctamente.',
+            ]);
+            break;
+
         default:
             throw new Exception("Acción '{$action}' no reconocida.");
     }

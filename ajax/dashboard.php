@@ -99,10 +99,10 @@ try {
                     (SELECT COALESCE(SUM(total_amount - paid_amount), 0)
                      FROM   debts
                      WHERE  user_id = ? AND status = 'pending') AS debts_owed,
-                    (SELECT COALESCE(ABS(SUM(a.balance * c.exchange_rate_to_dop)), 0)
-                     FROM   accounts a
-                     JOIN   currencies c ON a.currency_code = c.code
-                     WHERE  a.user_id = ? AND a.type = 'credit_card' AND a.balance < 0) AS credit_owed
+                    (SELECT COALESCE(SUM(a.balance * c.exchange_rate_to_dop), 0)
+                    FROM   accounts a
+                    JOIN   currencies c ON a.currency_code = c.code
+                    WHERE  a.user_id = ? AND a.type = 'credit_card' AND a.balance > 0) AS credit_owed
             ");
             $stmt->execute([$user_id, $user_id]);
             $owed_row  = $stmt->fetch(PDO::FETCH_ASSOC);

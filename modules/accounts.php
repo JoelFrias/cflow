@@ -223,6 +223,7 @@ $currencies = $stmt->fetchAll();
                             </tr>
                         </tbody>
                     </table>
+                    <div id="acc-pagination" class="mt-3"></div>
                 </div>
 
                 <!-- Estado vacío -->
@@ -411,30 +412,37 @@ function attachCardEvents() {
 }
 
 // ============================================
-// MODAL HISTORIAL DE CUENTA
+// HISTORIAL DE CUENTA — estado de paginación
 // ============================================
+let _accountTransactions = [];
+let _accountPage         = 1;
+const ACCOUNT_PAGE_SIZE  = 10;
+
 function openAccountHistoryModal(accountId, accountName) {
-    document.getElementById('acc-history-id').value       = accountId;
+    document.getElementById('acc-history-id').value        = accountId;
     document.getElementById('acc-history-name').textContent = accountName;
 
-    // Limpiar filtros
+    // Limpiar filtros, paginación y resumen
     document.getElementById('acc-filter-date-from').value = '';
     document.getElementById('acc-filter-date-to').value   = '';
     document.getElementById('acc-filter-type').value      = '';
+    document.getElementById('acc-pagination').innerHTML   = '';
+    document.getElementById('acc-history-summary').style.display = 'none';
+    _accountTransactions = [];
+    _accountPage = 1;
 
-    // Mostrar modal
-    const modal = new bootstrap.Modal(document.getElementById('accountHistoryModal'));
-    modal.show();
-
-    // Cargar transacciones sin filtros
+    new bootstrap.Modal(document.getElementById('accountHistoryModal')).show();
     loadAccountTransactions(accountId);
 }
 
-function loadAccountTransactions(accountId) {
-    const tbody    = document.getElementById('acc-history-tbody');
-    const emptyEl  = document.getElementById('acc-history-empty');
-    const countEl  = document.getElementById('acc-history-count');
+function loadAccountTransactions(accountId, resetPage = true) {
+    if (resetPage) _accountPage = 1;
+
+    const tbody     = document.getElementById('acc-history-tbody');
+    const emptyEl   = document.getElementById('acc-history-empty');
+    const countEl   = document.getElementById('acc-history-count');
     const summaryEl = document.getElementById('acc-history-summary');
+    const paginEl   = document.getElementById('acc-pagination');
 
     tbody.innerHTML = `
         <tr>
@@ -446,6 +454,7 @@ function loadAccountTransactions(accountId) {
     emptyEl.classList.add('d-none');
     countEl.classList.add('d-none');
     summaryEl.style.display = 'none';
+    paginEl.innerHTML = '';
 
     const body = {
         action:     'get_account_transactions',
@@ -468,86 +477,31 @@ function loadAccountTransactions(accountId) {
             return;
         }
 
-        const transactions = data.transactions || [];
+        _accountTransactions = data.transactions || [];
+        _accCurrencySymbol   = data.currency_symbol || '';
 
-        if (transactions.length === 0) {
-            tbody.innerHTML = '';
-            emptyEl.classList.remove('d-none');
-            return;
-        }
-
-        // Calcular totales para el resumen
-        let totalIncome  = 0;
-        let totalExpense = 0;
-        transactions.forEach(t => {
+        // Calcular resumen con todos los datos
+        let totalIncome = 0, totalExpense = 0;
+        _accountTransactions.forEach(t => {
             const amt = parseFloat(t.amount) || 0;
             if (t.type === 'income')  totalIncome  += amt;
             if (t.type === 'expense') totalExpense += amt;
         });
         const net = totalIncome - totalExpense;
-        const sym = data.currency_symbol || '';
+        const sym = _accCurrencySymbol;
 
-        document.getElementById('acc-summary-income').textContent  = `${sym} ${totalIncome.toLocaleString('es-DO', {minimumFractionDigits:2})}`;
-        document.getElementById('acc-summary-expense').textContent = `${sym} ${totalExpense.toLocaleString('es-DO', {minimumFractionDigits:2})}`;
-        const netEl = document.getElementById('acc-summary-net');
-        netEl.textContent  = `${sym} ${Math.abs(net).toLocaleString('es-DO', {minimumFractionDigits:2})}`;
-        netEl.className    = net >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
-        summaryEl.style.removeProperty('display');
-        summaryEl.style.display = 'flex';
-        summaryEl.classList.remove('d-none');
+        if (_accountTransactions.length > 0) {
+            document.getElementById('acc-summary-income').textContent  = `${sym} ${totalIncome.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`;
+            document.getElementById('acc-summary-expense').textContent = `${sym} ${totalExpense.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`;
+            const netEl    = document.getElementById('acc-summary-net');
+            netEl.textContent = `${sym} ${Math.abs(net).toLocaleString('es-DO', { minimumFractionDigits: 2 })}`;
+            netEl.className   = net >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+            summaryEl.style.removeProperty('display');
+            summaryEl.style.display = 'flex';
+            summaryEl.classList.remove('d-none');
+        }
 
-        // Renderizar filas
-        let html = '';
-        transactions.forEach(t => {
-            const fecha = t.date
-                ? new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', { year: 'numeric', month: 'short', day: 'numeric' })
-                : '—';
-
-            const desc = escapeHtml(t.description || '—');
-            const cat  = escapeHtml(t.category_name || '—');
-
-            let tipoBadge = '';
-            let montoClass = '';
-            let signo = '';
-            switch (t.type) {
-                case 'income':
-                    tipoBadge  = '<span class="badge bg-success">Ingreso</span>';
-                    montoClass = 'text-success fw-semibold';
-                    signo      = '+';
-                    break;
-                case 'expense':
-                    tipoBadge  = '<span class="badge bg-danger">Gasto</span>';
-                    montoClass = 'text-danger fw-semibold';
-                    signo      = '-';
-                    break;
-                case 'transfer':
-                    tipoBadge  = '<span class="badge bg-warning text-dark">Transferencia</span>';
-                    montoClass = 'text-warning fw-semibold';
-                    signo      = '';
-                    break;
-                default:
-                    tipoBadge  = `<span class="badge bg-secondary">${escapeHtml(t.type)}</span>`;
-                    montoClass = '';
-                    signo      = '';
-            }
-
-            const monto = parseFloat(t.amount).toLocaleString('es-DO', { minimumFractionDigits: 2 });
-            const sym   = escapeHtml(t.currency_symbol || data.currency_symbol || '');
-
-            html += `
-                <tr>
-                    <td class="text-nowrap">${fecha}</td>
-                    <td>${desc}</td>
-                    <td>${cat}</td>
-                    <td>${tipoBadge}</td>
-                    <td class="text-end ${montoClass}">${signo} ${sym} ${monto}</td>
-                </tr>
-            `;
-        });
-
-        tbody.innerHTML = html;
-        countEl.textContent = `${transactions.length} transacción${transactions.length !== 1 ? 'es' : ''} encontrada${transactions.length !== 1 ? 's' : ''}`;
-        countEl.classList.remove('d-none');
+        renderAccountPage(data.currency_symbol);
     })
     .catch(err => {
         showError('Error de conexión', err.message);
@@ -555,7 +509,131 @@ function loadAccountTransactions(accountId) {
     });
 }
 
-// Botón aplicar filtros del historial
+// Variable para conservar el símbolo entre renders de página
+let _accCurrencySymbol = '';
+
+function renderAccountPage(currencySymbol) {
+    const tbody   = document.getElementById('acc-history-tbody');
+    const emptyEl = document.getElementById('acc-history-empty');
+    const countEl = document.getElementById('acc-history-count');
+    const paginEl = document.getElementById('acc-pagination');
+    const sym     = currencySymbol ?? _accCurrencySymbol;
+
+    if (_accountTransactions.length === 0) {
+        tbody.innerHTML = '';
+        emptyEl.classList.remove('d-none');
+        countEl.classList.add('d-none');
+        paginEl.innerHTML = '';
+        return;
+    }
+
+    emptyEl.classList.add('d-none');
+
+    const total      = _accountTransactions.length;
+    const totalPages = Math.ceil(total / ACCOUNT_PAGE_SIZE);
+    const start      = (_accountPage - 1) * ACCOUNT_PAGE_SIZE;
+    const end        = Math.min(start + ACCOUNT_PAGE_SIZE, total);
+    const pageItems  = _accountTransactions.slice(start, end);
+
+    let html = '';
+    pageItems.forEach(t => {
+        const fecha = t.date
+            ? new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', { year: 'numeric', month: 'short', day: 'numeric' })
+            : '—';
+
+        const desc = escapeHtml(t.description || '—');
+        const cat  = escapeHtml(t.category_name || '—');
+        const tSym = escapeHtml(t.currency_symbol || sym);
+
+        let tipoBadge = '', montoClass = '', signo = '';
+        switch (t.type) {
+            case 'income':
+                tipoBadge  = '<span class="badge bg-success">Ingreso</span>';
+                montoClass = 'text-success fw-semibold';
+                signo      = '+';
+                break;
+            case 'expense':
+                tipoBadge  = '<span class="badge bg-danger">Gasto</span>';
+                montoClass = 'text-danger fw-semibold';
+                signo      = '-';
+                break;
+            case 'transfer':
+                tipoBadge  = '<span class="badge bg-warning text-dark">Transferencia</span>';
+                montoClass = 'text-warning fw-semibold';
+                signo      = '';
+                break;
+            default:
+                tipoBadge  = `<span class="badge bg-secondary">${escapeHtml(t.type)}</span>`;
+                montoClass = '';
+                signo      = '';
+        }
+
+        const monto = parseFloat(t.amount).toLocaleString('es-DO', { minimumFractionDigits: 2 });
+
+        html += `
+            <tr>
+                <td class="text-nowrap">${fecha}</td>
+                <td>${desc}</td>
+                <td>${cat}</td>
+                <td>${tipoBadge}</td>
+                <td class="text-end ${montoClass}">${signo} ${tSym} ${monto}</td>
+            </tr>`;
+    });
+    tbody.innerHTML = html;
+
+    // Contador
+    countEl.textContent = `Mostrando ${start + 1}–${end} de ${total} transacción${total !== 1 ? 'es' : ''}`;
+    countEl.classList.remove('d-none');
+
+    // Paginación
+    if (totalPages <= 1) {
+        paginEl.innerHTML = '';
+        return;
+    }
+
+    let pHtml = `<div class="d-flex flex-column align-items-center gap-1">
+        <ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center">`;
+
+    pHtml += `<li class="page-item ${_accountPage === 1 ? 'disabled' : ''}">
+        <button class="page-link" onclick="changeAccountPage(${_accountPage - 1})">
+            <i class="fas fa-chevron-left"></i></button></li>`;
+
+    for (let i = 1; i <= totalPages; i++) {
+        const nearCurrent = Math.abs(i - _accountPage) <= 1;
+        const isEdge      = i === 1 || i === totalPages;
+
+        if (!nearCurrent && !isEdge) {
+            if (i === 2 || i === totalPages - 1) {
+                pHtml += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+            }
+            continue;
+        }
+        pHtml += `<li class="page-item ${i === _accountPage ? 'active' : ''}">
+            <button class="page-link" onclick="changeAccountPage(${i})">${i}</button></li>`;
+    }
+
+    pHtml += `<li class="page-item ${_accountPage === totalPages ? 'disabled' : ''}">
+        <button class="page-link" onclick="changeAccountPage(${_accountPage + 1})">
+            <i class="fas fa-chevron-right"></i></button></li>`;
+
+    pHtml += `</ul>
+        <small class="text-muted">${total} transacción${total !== 1 ? 'es' : ''} en total</small>
+    </div>`;
+
+    paginEl.innerHTML = pHtml;
+}
+
+function changeAccountPage(page) {
+    const totalPages = Math.ceil(_accountTransactions.length / ACCOUNT_PAGE_SIZE);
+    if (page < 1 || page > totalPages) return;
+    _accountPage = page;
+    renderAccountPage();
+    document.getElementById('acc-history-tbody')
+        .closest('.table-responsive')
+        .scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Botón aplicar filtros
 document.getElementById('btn-acc-apply-filters').addEventListener('click', function () {
     const accountId = document.getElementById('acc-history-id').value;
     if (accountId) loadAccountTransactions(accountId);

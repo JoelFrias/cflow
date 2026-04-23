@@ -289,7 +289,7 @@ if (!isset($_SESSION['user_id'])) {
                 <!-- Tabla de resultados -->
                 <div class="table-responsive">
                     <table class="table table-hover table-sm">
-                        <thead>
+                        <thead class="table">
                             <tr>
                                 <th>Fecha</th>
                                 <th>Descripción</th>
@@ -297,11 +297,12 @@ if (!isset($_SESSION['user_id'])) {
                                 <th>Tipo</th>
                                 <th class="text-end">Monto</th>
                                 <th class="text-end">Balance después</th>
+                                <th class="text-center">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="history-table-body">
                             <tr>
-                                <td colspan="6" class="text-center py-3">
+                                <td colspan="7" class="text-center py-3">
                                     <div class="spinner-border spinner-border-sm text-primary" role="status">
                                         <span class="visually-hidden">Cargando...</span>
                                     </div> Cargando transacciones...
@@ -309,6 +310,7 @@ if (!isset($_SESSION['user_id'])) {
                             </tr>
                         </tbody>
                     </table>
+                    <div id="history-pagination" class="mt-3"></div>
                 </div>
                 <div id="history-empty-message" class="text-center text-muted py-3 d-none">
                     <i class="fas fa-receipt fa-2x mb-2 opacity-50"></i>
@@ -666,7 +668,7 @@ function openExpenseModal(cardId) {
     document.getElementById('expense-card-id').value = cardId;
     document.getElementById('expense-amount').value  = '';
     document.getElementById('expense-description').value = '';
-    document.getElementById('expense-date').value    = new Date().toISOString().slice(0, 10);
+    document.getElementById('expense-date').value = localDateStr();
 
     const sel = document.getElementById('expense-category');
     sel.innerHTML = '<option value="">Seleccionar categoría</option>' +
@@ -703,7 +705,7 @@ document.getElementById('btn-add-expense').addEventListener('click', function ()
 // ============================================
 function openPayModal(cardId) {
     document.getElementById('pay-card-id').value = cardId;
-    document.getElementById('pay-date').value     = new Date().toISOString().slice(0, 10);
+    document.getElementById('pay-date').value     = localDateStr();
     document.getElementById('pay-dop').value      = '0';
     document.getElementById('pay-usd').value      = '0';
     document.getElementById('dop-for-usd').value  = '0';
@@ -813,93 +815,230 @@ function confirmDelete(cardId, cardName) {
 }
 
 // ============================================
-// NUEVO: MODAL HISTORIAL DE TRANSACCIONES
+// HISTORIAL DE TRANSACCIONES — estado de paginación
 // ============================================
+let _historyTransactions = [];
+let _historyPage         = 1;
+const HISTORY_PAGE_SIZE  = 10;
+
 function openHistoryModal(cardId, cardName) {
-    document.getElementById('history-card-id').value = cardId;
+    document.getElementById('history-card-id').value       = cardId;
     document.getElementById('history-card-name').textContent = cardName;
-    
-    // Limpiar filtros y tabla
+
+    // Limpiar filtros, tabla y paginación
     document.getElementById('filter-date-from').value = '';
-    document.getElementById('filter-date-to').value = '';
-    document.getElementById('filter-type').value = '';
-    
-    const modal = new bootstrap.Modal(document.getElementById('transactionsHistoryModal'));
-    modal.show();
-    
-    // Cargar datos iniciales (últimos 3 meses por defecto, o todos)
+    document.getElementById('filter-date-to').value   = '';
+    document.getElementById('filter-type').value       = '';
+    document.getElementById('history-pagination').innerHTML = '';
+    _historyTransactions = [];
+    _historyPage = 1;
+
+    new bootstrap.Modal(document.getElementById('transactionsHistoryModal')).show();
     loadCardTransactions(cardId);
 }
 
-function loadCardTransactions(cardId) {
-    const tbody = document.getElementById('history-table-body');
+function loadCardTransactions(cardId, resetPage = true) {
+    if (resetPage) _historyPage = 1;
+
+    const tbody    = document.getElementById('history-table-body');
     const emptyMsg = document.getElementById('history-empty-message');
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> Cargando...</td></tr>`;
+    const pagination = document.getElementById('history-pagination');
+
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-3">
+        <div class="spinner-border spinner-border-sm text-primary"></div> Cargando...
+    </td></tr>`;
     emptyMsg.classList.add('d-none');
-    
+    pagination.innerHTML = '';
+
     const dateFrom = document.getElementById('filter-date-from').value;
     const dateTo   = document.getElementById('filter-date-to').value;
     const type     = document.getElementById('filter-type').value;
-    
-    const body = {
-        action: 'get_card_transactions',
-        card_id: cardId,
+
+    ajaxPost({
+        action:    'get_card_transactions',
+        card_id:   cardId,
         date_from: dateFrom,
-        date_to: dateTo,
-        type: type
-    };
-    
-    ajaxPost(body)
-        .then(data => {
-            if (!data.success) {
-                showError(data.message, data.full_message);
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">Error al cargar transacciones.</td></tr>`;
-                return;
-            }
-            
-            const transactions = data.transactions || [];
-            if (transactions.length === 0) {
-                tbody.innerHTML = '';
-                emptyMsg.classList.remove('d-none');
-                return;
-            }
-            
-            let html = '';
-            transactions.forEach(t => {
-                const fecha = new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', { year:'numeric', month:'short', day:'numeric' });
-                const desc = t.description || (t.type === 'payment' ? 'Pago de tarjeta' : 'Gasto');
-                const categoria = t.category_name ? escapeHtml(t.category_name) : '—';
-                const tipoBadge = t.type === 'expense' 
-                    ? '<span class="badge bg-danger">Gasto</span>' 
-                    : '<span class="badge bg-success">Pago</span>';
-                const monto = parseFloat(t.amount).toLocaleString('es-DO', { minimumFractionDigits: 2 });
-                const signo = t.type === 'expense' ? '+' : '-';
-                const montoClass = t.type === 'expense' ? 'text-danger' : 'text-success';
-                const balanceAfter = parseFloat(t.balance_after || 0).toLocaleString('es-DO', { minimumFractionDigits: 2 });
-                
-                html += `
-                    <tr>
-                        <td>${fecha}</td>
-                        <td>${escapeHtml(desc)}</td>
-                        <td>${categoria}</td>
-                        <td>${tipoBadge}</td>
-                        <td class="text-end ${montoClass}">${signo} ${t.currency_symbol || ''} ${monto}</td>
-                        <td class="text-end">${t.currency_symbol || ''} ${balanceAfter}</td>
-                    </tr>
-                `;
-            });
-            tbody.innerHTML = html;
-        })
-        .catch(err => {
-            showError('Error de conexión', err.message);
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">Error de red.</td></tr>`;
-        });
+        date_to:   dateTo,
+        type:      type,
+    }).then(data => {
+        if (!data.success) {
+            showError(data.message, data.full_message);
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-3">
+                Error al cargar transacciones.</td></tr>`;
+            return;
+        }
+        _historyTransactions = data.transactions || [];
+        renderHistoryPage();
+    }).catch(err => {
+        showError('Error de conexión', err.message);
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-3">
+            Error de red.</td></tr>`;
+    });
 }
 
-document.getElementById('btn-apply-filters').addEventListener('click', function() {
+function renderHistoryPage() {
+    const tbody      = document.getElementById('history-table-body');
+    const emptyMsg   = document.getElementById('history-empty-message');
+    const pagination = document.getElementById('history-pagination');
+    const cardId     = document.getElementById('history-card-id').value;
+
+    if (_historyTransactions.length === 0) {
+        tbody.innerHTML = '';
+        emptyMsg.classList.remove('d-none');
+        pagination.innerHTML = '';
+        return;
+    }
+
+    emptyMsg.classList.add('d-none');
+
+    const totalPages = Math.ceil(_historyTransactions.length / HISTORY_PAGE_SIZE);
+    const start      = (_historyPage - 1) * HISTORY_PAGE_SIZE;
+    const end        = Math.min(start + HISTORY_PAGE_SIZE, _historyTransactions.length);
+    const pageItems  = _historyTransactions.slice(start, end);
+
+    // Fecha de hoy a medianoche para comparación justa
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let html = '';
+    pageItems.forEach(t => {
+        const fecha = new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', {
+            year: 'numeric', month: 'short', day: 'numeric'
+        });
+        const desc      = escapeHtml(t.description || (t.row_type === 'payment' ? 'Pago de tarjeta' : 'Gasto'));
+        const categoria = t.category_name ? escapeHtml(t.category_name) : '—';
+        const tipoBadge = t.row_type === 'expense'
+            ? '<span class="badge bg-danger">Gasto</span>'
+            : '<span class="badge bg-success">Pago</span>';
+        const monto       = parseFloat(t.amount).toLocaleString('es-DO', { minimumFractionDigits: 2 });
+        const signo       = t.row_type === 'expense' ? '+' : '-';
+        const montoClass  = t.row_type === 'expense' ? 'text-danger fw-semibold' : 'text-success fw-semibold';
+        const balAfter    = parseFloat(t.balance_after || 0).toLocaleString('es-DO', { minimumFractionDigits: 2 });
+        const symbol      = t.currency_symbol || '';
+
+        // Verificar si puede eliminarse (≤ 3 días)
+        const txDate   = new Date(t.date + 'T00:00:00');
+        const diffDays = Math.round((today - txDate) / 86400000);
+        const canDelete = diffDays >= -1 && diffDays <= 3;
+
+        const deleteBtn = canDelete
+            ? `<button
+                 class="btn btn-outline-danger btn-sm py-0 px-2"
+                 style="font-size:.75rem; line-height:1.6;"
+                 title="Eliminar y revertir balance"
+                 onclick="confirmDeleteTransaction(${t.id}, ${cardId})">
+                   <i class="fas fa-trash-alt"></i>
+               </button>`
+            : `<span class="text-muted" title="Solo eliminable en los primeros 3 días">
+                   <i class="fas fa-lock" style="font-size:.75rem;"></i>
+               </span>`;
+
+        html += `
+            <tr>
+                <td class="text-nowrap">${fecha}</td>
+                <td>${desc}</td>
+                <td>${categoria}</td>
+                <td>${tipoBadge}</td>
+                <td class="text-end ${montoClass}">${signo} ${symbol} ${monto}</td>
+                <td class="text-end text-muted">${symbol} ${balAfter}</td>
+                <td class="text-center">${deleteBtn}</td>
+            </tr>`;
+    });
+    tbody.innerHTML = html;
+
+    // — Paginación —
+    if (totalPages <= 1) {
+        pagination.innerHTML = `<p class="text-center text-muted mb-0" style="font-size:.8rem;">
+            Mostrando ${_historyTransactions.length} transacción(es)</p>`;
+        return;
+    }
+
+    let pHtml = `<div class="d-flex flex-column align-items-center gap-1">
+        <ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center">`;
+
+    pHtml += `<li class="page-item ${_historyPage === 1 ? 'disabled' : ''}">
+        <button class="page-link" onclick="changeHistoryPage(${_historyPage - 1})">
+            <i class="fas fa-chevron-left"></i></button></li>`;
+
+    for (let i = 1; i <= totalPages; i++) {
+        const nearCurrent = Math.abs(i - _historyPage) <= 1;
+        const isEdge      = i === 1 || i === totalPages;
+        if (!nearCurrent && !isEdge) {
+            // Ellipsis
+            if (i === 2 || i === totalPages - 1) {
+                pHtml += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+            }
+            continue;
+        }
+        pHtml += `<li class="page-item ${i === _historyPage ? 'active' : ''}">
+            <button class="page-link" onclick="changeHistoryPage(${i})">${i}</button></li>`;
+    }
+
+    pHtml += `<li class="page-item ${_historyPage === totalPages ? 'disabled' : ''}">
+        <button class="page-link" onclick="changeHistoryPage(${_historyPage + 1})">
+            <i class="fas fa-chevron-right"></i></button></li>`;
+
+    pHtml += `</ul>
+        <small class="text-muted">
+            Mostrando ${start + 1}–${end} de ${_historyTransactions.length} transacciones
+        </small>
+    </div>`;
+
+    pagination.innerHTML = pHtml;
+}
+
+function changeHistoryPage(page) {
+    const totalPages = Math.ceil(_historyTransactions.length / HISTORY_PAGE_SIZE);
+    if (page < 1 || page > totalPages) return;
+    _historyPage = page;
+    renderHistoryPage();
+    // Hacer scroll al tope de la tabla del modal
+    document.getElementById('history-table-body').closest('.table-responsive').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function confirmDeleteTransaction(txId, cardId) {
+    Swal.fire({
+        title: '¿Eliminar transacción?',
+        html: `Esta acción <strong>revertirá los cambios en los balances</strong> de la tarjeta y, si aplica, de la cuenta de origen.<br><br>¿Deseas continuar?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Sí, eliminar y revertir',
+    }).then(result => {
+        if (!result.isConfirmed) return;
+
+        ajaxPost({ action: 'delete_card_transaction', transaction_id: txId, card_id: cardId })
+            .then(data => {
+                if (!data.success) { showError(data.message, data.full_message); return; }
+                showSuccess(data.message);
+
+                // Quitar del array local y re-renderizar sin re-fetch
+                _historyTransactions = _historyTransactions.filter(t => t.id != txId);
+                const totalPages = Math.ceil(_historyTransactions.length / HISTORY_PAGE_SIZE);
+                if (_historyPage > totalPages && totalPages > 0) _historyPage = totalPages;
+                renderHistoryPage();
+
+                // Actualizar resumen y tarjetas en el fondo
+                loadCards();
+            })
+            .catch(err => showError('Error de red al eliminar la transacción.', err.message));
+    });
+}
+
+document.getElementById('btn-apply-filters').addEventListener('click', function () {
     const cardId = document.getElementById('history-card-id').value;
     if (cardId) loadCardTransactions(cardId);
 });
+
+// Fecha local correcta (no UTC) para los inputs date
+function localDateStr() {
+    const now = new Date();
+    const y   = now.getFullYear();
+    const m   = String(now.getMonth() + 1).padStart(2, '0');
+    const d   = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
 
 // ============================================
 // INICIO
