@@ -1,68 +1,64 @@
 <?php
-// modules/accounts.php - Módulo de gestión de cuentas (bancarias, efectivo, wallets, etc.)
+// modules/accounts.php
 
-// Obtener monedas disponibles para el <select> del modal
 $stmt = $pdo->query("SELECT * FROM currencies ORDER BY code");
 $currencies = $stmt->fetchAll();
 ?>
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between">
-        <h5><i class="fas fa-wallet"></i> Mis Cuentas</h5>
-        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createAccountModal">
-            <i class="fas fa-plus"></i> Nueva Cuenta
+<!-- ============================================ -->
+<!-- MÓDULO DE CUENTAS — DISEÑO LIMPIO            -->
+<!-- ============================================ -->
+<div id="accounts-module">
+
+    <!-- ── Balance total ── -->
+    <div class="acc-total-bar">
+        <div>
+            <div class="acc-total-label">Balance Total Consolidado</div>
+            <div class="acc-total-value" id="balance-total-value">—</div>
+        </div>
+        <button class="btn-new-acc" data-bs-toggle="modal" data-bs-target="#createAccountModal">
+            <span style="font-size:16px;line-height:1">+</span> Nueva Cuenta
         </button>
     </div>
-    <div class="card-body">
 
-        <!-- Balance Total -->
-        <div class="alert alert-info" id="balance-total">
-            <strong>Balance Total Consolidado:</strong>
-            <span id="balance-total-value">Cargando...</span>
+    <!-- ── Grid de cuentas ── -->
+    <div id="accounts-list">
+        <div class="acc-loading">
+            <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+            <span>Cargando cuentas…</span>
         </div>
-
-        <!-- Lista de Cuentas -->
-        <div class="row" id="accounts-list">
-            <div class="col-12 text-center py-3">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        </div>
-
     </div>
+
 </div>
 
 <!-- ============================================ -->
-<!-- MODAL CREAR CUENTA -->
+<!-- MODAL: CREAR CUENTA                          -->
 <!-- ============================================ -->
 <div class="modal fade" id="createAccountModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus"></i> Nueva Cuenta</h5>
+        <div class="modal-content acc-modal-content">
+            <div class="modal-header acc-modal-header">
+                <h5 class="modal-title" style="font-size:16px;font-weight:500">Nueva Cuenta</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding:20px 24px">
                 <div class="mb-3">
-                    <label>Nombre de la cuenta</label>
-                    <input type="text" id="acc-name" class="form-control"
-                           placeholder="Ej: Banco Popular, Efectivo Casa, PayPal" required>
+                    <label class="acc-form-label">Nombre</label>
+                    <input type="text" id="acc-name" class="form-control acc-form-control"
+                           placeholder="Ej: Banco Popular, Efectivo Casa, PayPal">
                 </div>
                 <div class="mb-3">
-                    <label>Tipo de cuenta</label>
-                    <select id="acc-type" class="form-control" required>
+                    <label class="acc-form-label">Tipo</label>
+                    <select id="acc-type" class="form-control acc-form-control">
                         <option value="cash">Efectivo</option>
                         <option value="bank">Cuenta Bancaria</option>
-                        <option value="wallet">Wallet Digital (PayPal, UPI, etc.)</option>
+                        <option value="wallet">Wallet Digital</option>
                     </select>
-                    <small class="text-muted">
-                        Las tarjetas de crédito/débito se crean en el módulo "Tarjetas"
-                    </small>
+                    <div style="font-size:11px;color:#9ca3af;margin-top:4px">Las tarjetas se gestionan en el módulo "Tarjetas"</div>
                 </div>
                 <div class="mb-3">
-                    <label>Moneda</label>
-                    <select id="acc-currency" class="form-control" required>
+                    <label class="acc-form-label">Moneda</label>
+                    <select id="acc-currency" class="form-control acc-form-control">
                         <?php foreach($currencies as $cur): ?>
                         <option value="<?= htmlspecialchars($cur['code']) ?>">
                             <?= htmlspecialchars($cur['name']) ?> (<?= htmlspecialchars($cur['symbol']) ?>)
@@ -70,14 +66,14 @@ $currencies = $stmt->fetchAll();
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label>Saldo inicial</label>
-                    <input type="number" step="0.01" id="acc-balance" class="form-control" value="0">
+                <div class="mb-1">
+                    <label class="acc-form-label">Saldo inicial</label>
+                    <input type="number" step="0.01" id="acc-balance" class="form-control acc-form-control" value="0">
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="btn-create-account">
+            <div class="modal-footer" style="padding:14px 24px;border-top:1px solid #f0f0f0">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn-save-acc" id="btn-create-account">
                     <span id="btn-create-text">Crear Cuenta</span>
                     <span id="btn-create-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
@@ -87,32 +83,32 @@ $currencies = $stmt->fetchAll();
 </div>
 
 <!-- ============================================ -->
-<!-- MODAL EDITAR CUENTA -->
+<!-- MODAL: EDITAR CUENTA                         -->
 <!-- ============================================ -->
 <div class="modal fade" id="editAccountModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-edit"></i> Editar Cuenta</h5>
+        <div class="modal-content acc-modal-content">
+            <div class="modal-header acc-modal-header">
+                <h5 class="modal-title" style="font-size:16px;font-weight:500">Editar Cuenta</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding:20px 24px">
                 <input type="hidden" id="edit-account-id">
                 <div class="mb-3">
-                    <label>Nombre de la cuenta</label>
-                    <input type="text" id="edit-acc-name" class="form-control" required>
+                    <label class="acc-form-label">Nombre</label>
+                    <input type="text" id="edit-acc-name" class="form-control acc-form-control">
                 </div>
                 <div class="mb-3">
-                    <label>Tipo de cuenta</label>
-                    <select id="edit-acc-type" class="form-control" required>
+                    <label class="acc-form-label">Tipo</label>
+                    <select id="edit-acc-type" class="form-control acc-form-control">
                         <option value="cash">Efectivo</option>
                         <option value="bank">Cuenta Bancaria</option>
-                        <option value="wallet">Wallet Digital (PayPal, UPI, etc.)</option>
+                        <option value="wallet">Wallet Digital</option>
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label>Moneda</label>
-                    <select id="edit-acc-currency" class="form-control" required>
+                <div class="mb-1">
+                    <label class="acc-form-label">Moneda</label>
+                    <select id="edit-acc-currency" class="form-control acc-form-control">
                         <?php foreach($currencies as $cur): ?>
                         <option value="<?= htmlspecialchars($cur['code']) ?>">
                             <?= htmlspecialchars($cur['name']) ?> (<?= htmlspecialchars($cur['symbol']) ?>)
@@ -121,9 +117,9 @@ $currencies = $stmt->fetchAll();
                     </select>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="btn-update-account">
+            <div class="modal-footer" style="padding:14px 24px;border-top:1px solid #f0f0f0">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn-save-acc" id="btn-update-account">
                     <span id="btn-update-text">Guardar Cambios</span>
                     <span id="btn-update-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
@@ -133,221 +129,591 @@ $currencies = $stmt->fetchAll();
 </div>
 
 <!-- ============================================ -->
-<!-- MODAL HISTORIAL DE TRANSACCIONES DE CUENTA  -->
+<!-- MODAL: HISTORIAL DE CUENTA                   -->
 <!-- ============================================ -->
 <div class="modal fade" id="accountHistoryModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-history me-2"></i>
-                    Historial de <span id="acc-history-name">Cuenta</span>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="modal-content acc-modal-content">
+            <div class="modal-header acc-modal-header">
+                <div>
+                    <h5 class="modal-title" style="font-size:16px;font-weight:500" id="acc-history-name">Historial</h5>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:2px">Transacciones de la cuenta</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding:20px 24px">
                 <input type="hidden" id="acc-history-id">
 
+                <!-- Resumen rápido -->
+                <div id="acc-history-summary" style="display:none;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+                    <div class="acc-sum-card">
+                        <div class="acc-sum-label">Ingresos</div>
+                        <div class="acc-sum-val" style="color:#1D9E75" id="acc-summary-income">—</div>
+                    </div>
+                    <div class="acc-sum-card">
+                        <div class="acc-sum-label">Egresos</div>
+                        <div class="acc-sum-val" style="color:#D85A30" id="acc-summary-expense">—</div>
+                    </div>
+                    <div class="acc-sum-card">
+                        <div class="acc-sum-label">Neto del período</div>
+                        <div class="acc-sum-val" id="acc-summary-net">—</div>
+                    </div>
+                </div>
+
                 <!-- Filtros -->
-                <div class="row g-2 mb-3 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Fecha desde</label>
-                        <input type="date" id="acc-filter-date-from" class="form-control">
+                <div class="acc-history-filters">
+                    <div>
+                        <label class="acc-form-label">Desde</label>
+                        <input type="date" id="acc-filter-date-from" class="acc-form-control">
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Fecha hasta</label>
-                        <input type="date" id="acc-filter-date-to" class="form-control">
+                    <div>
+                        <label class="acc-form-label">Hasta</label>
+                        <input type="date" id="acc-filter-date-to" class="acc-form-control">
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Tipo de transacción</label>
-                        <select id="acc-filter-type" class="form-select">
+                    <div>
+                        <label class="acc-form-label">Tipo</label>
+                        <select id="acc-filter-type" class="acc-form-control">
                             <option value="">Todos</option>
                             <option value="income">Ingreso</option>
-                            <option value="expense">Gasto / Egreso</option>
+                            <option value="expense">Gasto</option>
                             <option value="transfer">Transferencia</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-primary w-100" id="btn-acc-apply-filters">
-                            <i class="fas fa-filter me-1"></i> Aplicar Filtros
-                        </button>
+                    <div style="display:flex;align-items:flex-end">
+                        <button class="btn-apply-hist" id="btn-acc-apply-filters">Aplicar</button>
                     </div>
                 </div>
 
-                <!-- Resumen rápido -->
-                <div class="row g-2 mb-3" id="acc-history-summary" style="display:none!important;">
-                    <div class="col-md-4">
-                        <div class="card border-success">
-                            <div class="card-body py-2 px-3">
-                                <small class="text-muted d-block">Total Ingresos</small>
-                                <strong class="text-success" id="acc-summary-income">—</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card border-danger">
-                            <div class="card-body py-2 px-3">
-                                <small class="text-muted d-block">Total Egresos</small>
-                                <strong class="text-danger" id="acc-summary-expense">—</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card border-info">
-                            <div class="card-body py-2 px-3">
-                                <small class="text-muted d-block">Neto del período</small>
-                                <strong id="acc-summary-net">—</strong>
-                            </div>
-                        </div>
+                <!-- Hint móvil -->
+                <div class="acc-swipe-hint" id="accSwipeHint" style="display:none">
+                    Desliza cada fila → para ver más
+                </div>
+
+                <!-- Contenido -->
+                <div id="acc-history-container">
+                    <div class="acc-loading">
+                        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                        <span>Cargando transacciones…</span>
                     </div>
                 </div>
 
-                <!-- Tabla -->
-                <div class="table-responsive">
-                    <table class="table table-hover table-sm align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Descripción</th>
-                                <th>Categoría</th>
-                                <th>Tipo</th>
-                                <th class="text-end">Monto</th>
-                            </tr>
-                        </thead>
-                        <tbody id="acc-history-tbody">
-                            <tr>
-                                <td colspan="5" class="text-center py-4">
-                                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                    Cargando transacciones...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div id="acc-pagination" class="mt-3"></div>
-                </div>
-
-                <!-- Estado vacío -->
-                <div id="acc-history-empty" class="text-center text-muted py-4 d-none">
-                    <i class="fas fa-receipt fa-2x mb-2 opacity-50 d-block"></i>
-                    No hay transacciones que coincidan con los filtros seleccionados.
-                </div>
-
-                <!-- Contador de resultados -->
-                <div id="acc-history-count" class="text-muted small text-end mt-1 d-none"></div>
+                <!-- Paginación + contador -->
+                <div id="acc-history-count" style="font-size:11px;color:#9ca3af;text-align:right;margin-top:8px"></div>
+                <div id="acc-pagination" style="margin-top:10px"></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            <div class="modal-footer" style="padding:14px 24px;border-top:1px solid #f0f0f0">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- ============================================ -->
-<!-- JAVASCRIPT -->
+<!-- ESTILOS                                      -->
+<!-- ============================================ -->
+<style>
+#accounts-module {
+    --acc-radius: 10px;
+    --acc-border: #e8e8e8;
+    --acc-inc: #1D9E75;
+    --acc-exp: #D85A30;
+    --acc-trf: #3b82f6;
+    --acc-inc-bg: #eaf3de;
+    --acc-exp-bg: #faece7;
+    --acc-trf-bg: #eff6ff;
+    --acc-inc-text: #3B6D11;
+    --acc-exp-text: #993C1D;
+    --acc-trf-text: #1e40af;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Barra de total ── */
+.acc-total-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid var(--acc-border);
+    border-radius: var(--acc-radius);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+}
+.acc-total-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+.acc-total-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: #1f2937;
+}
+.btn-new-acc {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    background: #374151;
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+}
+.btn-new-acc:hover { background: #1f2937; }
+
+/* ── Loading / empty ── */
+.acc-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 48px 0;
+    color: #9ca3af;
+    font-size: 14px;
+}
+.acc-empty {
+    text-align: center;
+    padding: 56px 20px;
+    color: #9ca3af;
+}
+.acc-empty-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+    opacity: .35;
+}
+.acc-empty p { font-size: 14px; margin-bottom: 14px; }
+
+/* ── Grid de cuentas ── */
+.acc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+
+/* ── Tarjeta de cuenta ── */
+.acc-card {
+    background: #fff;
+    border: 1px solid var(--acc-border);
+    border-radius: var(--acc-radius);
+    padding: 16px 18px;
+    transition: box-shadow .15s, border-color .15s;
+    position: relative;
+}
+.acc-card:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05);
+}
+.acc-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.acc-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.3;
+    max-width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.acc-card-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.acc-action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--acc-border);
+    background: #f9fafb;
+    color: #6b7280;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .12s;
+}
+.acc-action-btn:hover { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+.acc-action-btn.del:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.acc-card-badges {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.acc-pill {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 9px;
+    border-radius: 20px;
+    letter-spacing: .03em;
+}
+.pill-type { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
+.pill-currency { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.acc-card-balance {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+    letter-spacing: -.01em;
+}
+.acc-card-balance-label {
+    font-size: 10px;
+    color: #9ca3af;
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* ── Modal ── */
+.acc-modal-content {
+    border: none;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.12);
+}
+.acc-modal-header {
+    padding: 18px 24px 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+.acc-form-label {
+    display: block;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #9ca3af !important;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 5px !important;
+}
+.acc-form-control {
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    background: #fafafa !important;
+    color: #374151;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s, background .15s;
+}
+.acc-form-control:focus {
+    border-color: #a5b4fc !important;
+    background: #fff !important;
+    box-shadow: 0 0 0 3px rgba(165,180,252,.15) !important;
+}
+.btn-save-acc {
+    padding: 8px 22px;
+    background: #374151;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s;
+}
+.btn-save-acc:hover { background: #1f2937; }
+
+/* ── Historial: resumen ── */
+.acc-sum-card {
+    background: #f9fafb;
+    border: 1px solid var(--acc-border);
+    border-radius: var(--acc-radius);
+    padding: 12px 14px;
+}
+.acc-sum-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+.acc-sum-val { font-size: 16px; font-weight: 600; }
+
+/* ── Historial: filtros ── */
+.acc-history-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 10px;
+    margin-bottom: 14px;
+    align-items: end;
+}
+@media (max-width: 767px) {
+    .acc-history-filters { grid-template-columns: 1fr 1fr; }
+    #acc-history-summary { grid-template-columns: 1fr !important; }
+}
+.btn-apply-hist {
+    padding: 8px 18px;
+    background: #374151;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+    height: 38px;
+}
+.btn-apply-hist:hover { background: #1f2937; }
+
+/* ── Historial: hint móvil ── */
+.acc-swipe-hint {
+    text-align: center;
+    font-size: 11px;
+    color: #b0b7c3;
+    margin-bottom: 8px;
+    letter-spacing: .02em;
+}
+
+/* ── Historial: lista móvil ── */
+.acc-hist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.acc-hist-item {
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid var(--acc-border);
+    overflow: hidden;
+}
+.acc-hist-scroll {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.acc-hist-scroll::-webkit-scrollbar { display: none; }
+.acc-hist-panel {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    padding: 11px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 60px;
+}
+.acc-hist-panel-extra {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    padding: 11px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f8f9fb;
+}
+.acc-hist-dot {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+.hdot-inc { background: var(--acc-inc-bg); color: var(--acc-inc-text); }
+.hdot-exp { background: var(--acc-exp-bg); color: var(--acc-exp-text); }
+.hdot-trf { background: var(--acc-trf-bg); color: var(--acc-trf-text); }
+.acc-hist-main { flex: 1; min-width: 0; }
+.acc-hist-cat {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.acc-hist-date { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.acc-hist-amt { text-align: right; flex-shrink: 0; }
+.acc-hist-amt-main { font-size: 14px; font-weight: 600; }
+.hamt-inc { color: var(--acc-inc); }
+.hamt-exp { color: var(--acc-exp); }
+.hamt-trf { color: var(--acc-trf); }
+.acc-hist-extra-col { flex: 1; min-width: 0; }
+.acc-ex-label {
+    font-size: 9px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: 2px;
+}
+.acc-ex-val {
+    font-size: 12px;
+    color: #374151;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.acc-ex-divider { width: 1px; height: 28px; background: var(--acc-border); flex-shrink: 0; }
+.acc-hist-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 0 3px;
+}
+.acc-dot-ind { width: 5px; height: 5px; border-radius: 50%; background: #d1d5db; transition: background .2s; }
+.acc-dot-ind.active { background: #6b7280; }
+
+/* ── Historial: tabla desktop ── */
+.acc-hist-table-wrap { overflow-x: auto; display: none; }
+.acc-hist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.acc-hist-table thead tr { border-bottom: 2px solid #f3f4f6; }
+.acc-hist-table thead th {
+    padding: 9px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    white-space: nowrap;
+}
+.acc-hist-table tbody tr {
+    border-bottom: 1px solid #f9fafb;
+    transition: background .1s;
+}
+.acc-hist-table tbody tr:last-child { border-bottom: none; }
+.acc-hist-table tbody tr:hover { background: #fafafa; }
+.acc-hist-table td { padding: 10px 12px; color: #374151; vertical-align: middle; }
+.acc-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.abadge-inc { background: var(--acc-inc-bg); color: var(--acc-inc-text); }
+.abadge-exp { background: var(--acc-exp-bg); color: var(--acc-exp-text); }
+.abadge-trf { background: var(--acc-trf-bg); color: var(--acc-trf-text); }
+
+/* ── Paginación ── */
+.acc-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.acc-pag-btn {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--acc-border);
+    background: #fff;
+    color: #6b7280;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .1s;
+    text-decoration: none;
+}
+.acc-pag-btn:hover { background: #f3f4f6; color: #1f2937; }
+.acc-pag-btn.active { background: #374151; color: #fff; border-color: #374151; }
+.acc-pag-btn.disabled { opacity: .4; pointer-events: none; }
+
+/* ── Responsive ── */
+@media (min-width: 768px) {
+    .acc-hist-list { display: none !important; }
+    .acc-hist-table-wrap { display: block !important; }
+    .acc-swipe-hint { display: none !important; }
+}
+</style>
+
+<!-- ============================================ -->
+<!-- JAVASCRIPT                                   -->
 <!-- ============================================ -->
 <script>
 const ACCOUNTS_AJAX_URL = 'ajax/accounts.php';
 
-const TYPE_NAMES = {
-    cash:   'Efectivo',
-    bank:   'Cuenta Bancaria',
-    wallet: 'Wallet Digital',
-};
+const ACC_TYPE_NAMES = { cash: 'Efectivo', bank: 'Banco', wallet: 'Wallet' };
 
-// ============================================
-// HELPER: mostrar error con SweetAlert2
-// ============================================
-function showError(message, fullMessage = null) {
-    console.error('[Accounts Error]', fullMessage || message);
-    Swal.fire({
-        toast: true,
-        position: 'top-start',
-        icon: 'error',
-        title: message,
-        showConfirmButton: false,
-        timer: 4000,
-        timerProgressBar: true,
-    });
+// ─── Helpers ──────────────────────────────────
+
+function accShowError(msg, full) {
+    console.error('[Accounts]', full ?? msg);
+    Swal.fire({ toast: true, position: 'top-start', icon: 'error', title: msg,
+        showConfirmButton: false, timer: 4000, timerProgressBar: true });
+}
+function accShowSuccess(msg) {
+    Swal.fire({ toast: true, position: 'top-start', icon: 'success', title: msg,
+        showConfirmButton: false, timer: 3000, timerProgressBar: true });
+}
+function accEsc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function accFmt(n, sym) {
+    return (sym ? accEsc(sym) + ' ' : '') +
+        parseFloat(n).toLocaleString('es-DO', { minimumFractionDigits: 2 });
 }
 
-// ============================================
-// HELPER: mostrar éxito
-// ============================================
-function showSuccess(message) {
-    Swal.fire({
-        toast: true,
-        position: 'top-start',
-        icon: 'success',
-        title: message,
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-    });
-}
+// ─── Renderizar tarjeta ────────────────────────
 
-// ============================================
-// RENDER: pintar tarjeta de una cuenta (con botones de editar/eliminar/historial)
-// ============================================
 function renderAccountCard(acc) {
-    const typeName = TYPE_NAMES[acc.type] || acc.type;
+    const typeName = ACC_TYPE_NAMES[acc.type] || acc.type;
     const balance  = parseFloat(acc.balance).toLocaleString('es-DO', { minimumFractionDigits: 2 });
+    const dataAcc  = accEsc(JSON.stringify(acc).replace(/'/g, "&#39;"));
 
     return `
-        <div class="col-md-4 mb-3" id="account-card-${acc.id}">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h6 class="mb-2">${escapeHtml(acc.name)}</h6>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-info btn-history-account"
-                                    data-id="${acc.id}"
-                                    data-name="${escapeHtml(acc.name)}"
-                                    title="Ver historial">
-                                <i class="fas fa-history"></i>
-                            </button>
-                            <button class="btn btn-outline-secondary btn-edit-account" 
-                                    data-account='${JSON.stringify(acc).replace(/'/g, "&#39;")}'
-                                    title="Editar cuenta">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-outline-danger btn-delete-account" 
-                                    data-id="${acc.id}" 
-                                    data-name="${escapeHtml(acc.name)}"
-                                    title="Eliminar cuenta">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <p class="mb-1">
-                        <span class="badge bg-secondary">${typeName}</span>
-                        <span class="badge bg-info">${escapeHtml(acc.currency_code)}</span>
-                    </p>
-                    <h4 class="mb-0">${escapeHtml(acc.symbol)} ${balance}</h4>
-                </div>
+    <div class="acc-card" id="account-card-${acc.id}">
+        <div class="acc-card-top">
+            <div class="acc-card-name" title="${accEsc(acc.name)}">${accEsc(acc.name)}</div>
+            <div class="acc-card-actions">
+                <button class="acc-action-btn btn-history-account"
+                        data-id="${acc.id}" data-name="${accEsc(acc.name)}" title="Historial">
+                    ≡
+                </button>
+                <button class="acc-action-btn btn-edit-account"
+                        data-account='${dataAcc}' title="Editar">
+                    ✎
+                </button>
+                <button class="acc-action-btn del btn-delete-account"
+                        data-id="${acc.id}" data-name="${accEsc(acc.name)}" title="Eliminar">
+                    ✕
+                </button>
             </div>
         </div>
-    `;
-}
-
-// ============================================
-// RENDER: estado vacío
-// ============================================
-function renderEmptyState() {
-    return `
-        <div class="col-12 text-center text-muted py-5" id="accounts-empty">
-            <i class="fas fa-wallet fa-3x mb-3"></i>
-            <p>No tienes cuentas registradas</p>
-            <button class="btn btn-primary btn-sm"
-                    data-bs-toggle="modal" data-bs-target="#createAccountModal">
-                Crear primera cuenta
-            </button>
+        <div class="acc-card-badges">
+            <span class="acc-pill pill-type">${typeName}</span>
+            <span class="acc-pill pill-currency">${accEsc(acc.currency_code)}</span>
         </div>
-    `;
+        <div class="acc-card-balance">${accEsc(acc.symbol)} ${balance}</div>
+        <div class="acc-card-balance-label">Saldo actual</div>
+    </div>`;
 }
 
-// ============================================
-// CARGAR CUENTAS
-// ============================================
+function renderEmptyState() {
+    return `<div class="acc-empty" id="accounts-empty">
+        <div class="acc-empty-icon">🏦</div>
+        <p>No tienes cuentas registradas aún</p>
+        <button class="btn-new-acc" data-bs-toggle="modal" data-bs-target="#createAccountModal">
+            <span>+</span> Crear primera cuenta
+        </button>
+    </div>`;
+}
+
+// ─── Cargar cuentas ────────────────────────────
+
 function loadAccounts() {
     fetch(ACCOUNTS_AJAX_URL, {
         method: 'POST',
@@ -357,486 +723,373 @@ function loadAccounts() {
     .then(r => r.json())
     .then(data => {
         if (!data.success) {
-            showError(data.message, data.full_message);
+            accShowError(data.message, data.full_message);
             document.getElementById('accounts-list').innerHTML = renderEmptyState();
             return;
         }
-
-        // Balance total
         const totalDop = parseFloat(data.total_dop).toLocaleString('es-DO', { minimumFractionDigits: 2 });
-        document.getElementById('balance-total-value').textContent = ` RD$ ${totalDop}`;
+        document.getElementById('balance-total-value').textContent = 'RD$ ' + totalDop;
 
-        // Tarjetas
         const list = document.getElementById('accounts-list');
-        if (data.accounts.length === 0) {
+        if (!data.accounts.length) {
             list.innerHTML = renderEmptyState();
         } else {
-            list.innerHTML = data.accounts.map(renderAccountCard).join('');
+            list.innerHTML = '<div class="acc-grid">' + data.accounts.map(renderAccountCard).join('') + '</div>';
             attachCardEvents();
         }
     })
     .catch(err => {
-        showError('No se pudieron cargar las cuentas. Revisa la consola.', err.message);
+        accShowError('No se pudieron cargar las cuentas.', err.message);
         document.getElementById('accounts-list').innerHTML = renderEmptyState();
     });
 }
 
-// ============================================
-// ASIGNAR EVENTOS A BOTONES
-// ============================================
+// ─── Eventos de tarjetas ──────────────────────
+
 function attachCardEvents() {
-    // Botones Historial
     document.querySelectorAll('.btn-history-account').forEach(btn => {
-        btn.addEventListener('click', function(e) {
+        btn.addEventListener('click', e => {
             e.stopPropagation();
-            openAccountHistoryModal(this.dataset.id, this.dataset.name);
+            openAccountHistoryModal(btn.dataset.id, btn.dataset.name);
         });
     });
-
-    // Botones Editar
     document.querySelectorAll('.btn-edit-account').forEach(btn => {
-        btn.addEventListener('click', function(e) {
+        btn.addEventListener('click', e => {
             e.stopPropagation();
-            const accountData = JSON.parse(this.dataset.account);
-            openEditModal(accountData);
+            openEditModal(JSON.parse(btn.dataset.account));
         });
     });
-
-    // Botones Eliminar
     document.querySelectorAll('.btn-delete-account').forEach(btn => {
-        btn.addEventListener('click', function(e) {
+        btn.addEventListener('click', e => {
             e.stopPropagation();
-            deleteAccount(this.dataset.id, this.dataset.name);
+            deleteAccount(btn.dataset.id, btn.dataset.name);
         });
     });
 }
 
-// ============================================
-// HISTORIAL DE CUENTA — estado de paginación
-// ============================================
-let _accountTransactions = [];
-let _accountPage         = 1;
-const ACCOUNT_PAGE_SIZE  = 10;
+// ─── Historial ────────────────────────────────
 
-function openAccountHistoryModal(accountId, accountName) {
-    document.getElementById('acc-history-id').value        = accountId;
-    document.getElementById('acc-history-name').textContent = accountName;
+let _accTxAll   = [];
+let _accPage    = 1;
+let _accSymbol  = '';
+const ACC_PAGE  = 10;
 
-    // Limpiar filtros, paginación y resumen
-    document.getElementById('acc-filter-date-from').value = '';
-    document.getElementById('acc-filter-date-to').value   = '';
-    document.getElementById('acc-filter-type').value      = '';
-    document.getElementById('acc-pagination').innerHTML   = '';
+function openAccountHistoryModal(id, name) {
+    document.getElementById('acc-history-id').value         = id;
+    document.getElementById('acc-history-name').textContent = name;
+    document.getElementById('acc-filter-date-from').value   = '';
+    document.getElementById('acc-filter-date-to').value     = '';
+    document.getElementById('acc-filter-type').value        = '';
+    document.getElementById('acc-pagination').innerHTML     = '';
+    document.getElementById('acc-history-count').textContent = '';
     document.getElementById('acc-history-summary').style.display = 'none';
-    _accountTransactions = [];
-    _accountPage = 1;
-
+    _accTxAll = []; _accPage = 1; _accSymbol = '';
     new bootstrap.Modal(document.getElementById('accountHistoryModal')).show();
-    loadAccountTransactions(accountId);
+    loadAccountTx(id);
 }
 
-function loadAccountTransactions(accountId, resetPage = true) {
-    if (resetPage) _accountPage = 1;
-
-    const tbody     = document.getElementById('acc-history-tbody');
-    const emptyEl   = document.getElementById('acc-history-empty');
-    const countEl   = document.getElementById('acc-history-count');
-    const summaryEl = document.getElementById('acc-history-summary');
-    const paginEl   = document.getElementById('acc-pagination');
-
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="5" class="text-center py-4">
-                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                Cargando transacciones...
-            </td>
-        </tr>`;
-    emptyEl.classList.add('d-none');
-    countEl.classList.add('d-none');
-    summaryEl.style.display = 'none';
-    paginEl.innerHTML = '';
-
-    const body = {
-        action:     'get_account_transactions',
-        account_id: accountId,
-        date_from:  document.getElementById('acc-filter-date-from').value,
-        date_to:    document.getElementById('acc-filter-date-to').value,
-        type:       document.getElementById('acc-filter-type').value,
-    };
-
-    fetch(ACCOUNTS_AJAX_URL, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body:    new URLSearchParams(body).toString(),
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.success) {
-            showError(data.message, data.full_message);
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">Error al cargar transacciones.</td></tr>`;
-            return;
-        }
-
-        _accountTransactions = data.transactions || [];
-        _accCurrencySymbol   = data.currency_symbol || '';
-
-        // Calcular resumen con todos los datos
-        let totalIncome = 0, totalExpense = 0;
-        _accountTransactions.forEach(t => {
-            const amt = parseFloat(t.amount) || 0;
-            if (t.type === 'income')  totalIncome  += amt;
-            if (t.type === 'expense') totalExpense += amt;
-        });
-        const net = totalIncome - totalExpense;
-        const sym = _accCurrencySymbol;
-
-        if (_accountTransactions.length > 0) {
-            document.getElementById('acc-summary-income').textContent  = `${sym} ${totalIncome.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`;
-            document.getElementById('acc-summary-expense').textContent = `${sym} ${totalExpense.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`;
-            const netEl    = document.getElementById('acc-summary-net');
-            netEl.textContent = `${sym} ${Math.abs(net).toLocaleString('es-DO', { minimumFractionDigits: 2 })}`;
-            netEl.className   = net >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
-            summaryEl.style.removeProperty('display');
-            summaryEl.style.display = 'flex';
-            summaryEl.classList.remove('d-none');
-        }
-
-        renderAccountPage(data.currency_symbol);
-    })
-    .catch(err => {
-        showError('Error de conexión', err.message);
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">Error de red.</td></tr>`;
-    });
-}
-
-// Variable para conservar el símbolo entre renders de página
-let _accCurrencySymbol = '';
-
-function renderAccountPage(currencySymbol) {
-    const tbody   = document.getElementById('acc-history-tbody');
-    const emptyEl = document.getElementById('acc-history-empty');
-    const countEl = document.getElementById('acc-history-count');
-    const paginEl = document.getElementById('acc-pagination');
-    const sym     = currencySymbol ?? _accCurrencySymbol;
-
-    if (_accountTransactions.length === 0) {
-        tbody.innerHTML = '';
-        emptyEl.classList.remove('d-none');
-        countEl.classList.add('d-none');
-        paginEl.innerHTML = '';
-        return;
-    }
-
-    emptyEl.classList.add('d-none');
-
-    const total      = _accountTransactions.length;
-    const totalPages = Math.ceil(total / ACCOUNT_PAGE_SIZE);
-    const start      = (_accountPage - 1) * ACCOUNT_PAGE_SIZE;
-    const end        = Math.min(start + ACCOUNT_PAGE_SIZE, total);
-    const pageItems  = _accountTransactions.slice(start, end);
-
-    let html = '';
-    pageItems.forEach(t => {
-        const fecha = t.date
-            ? new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', { year: 'numeric', month: 'short', day: 'numeric' })
-            : '—';
-
-        const desc = escapeHtml(t.description || '—');
-        const cat  = escapeHtml(t.category_name || '—');
-        const tSym = escapeHtml(t.currency_symbol || sym);
-
-        let tipoBadge = '', montoClass = '', signo = '';
-        switch (t.type) {
-            case 'income':
-                tipoBadge  = '<span class="badge bg-success">Ingreso</span>';
-                montoClass = 'text-success fw-semibold';
-                signo      = '+';
-                break;
-            case 'expense':
-                tipoBadge  = '<span class="badge bg-danger">Gasto</span>';
-                montoClass = 'text-danger fw-semibold';
-                signo      = '-';
-                break;
-            case 'transfer':
-                tipoBadge  = '<span class="badge bg-warning text-dark">Transferencia</span>';
-                montoClass = 'text-warning fw-semibold';
-                signo      = '';
-                break;
-            default:
-                tipoBadge  = `<span class="badge bg-secondary">${escapeHtml(t.type)}</span>`;
-                montoClass = '';
-                signo      = '';
-        }
-
-        const monto = parseFloat(t.amount).toLocaleString('es-DO', { minimumFractionDigits: 2 });
-
-        html += `
-            <tr>
-                <td class="text-nowrap">${fecha}</td>
-                <td>${desc}</td>
-                <td>${cat}</td>
-                <td>${tipoBadge}</td>
-                <td class="text-end ${montoClass}">${signo} ${tSym} ${monto}</td>
-            </tr>`;
-    });
-    tbody.innerHTML = html;
-
-    // Contador
-    countEl.textContent = `Mostrando ${start + 1}–${end} de ${total} transacción${total !== 1 ? 'es' : ''}`;
-    countEl.classList.remove('d-none');
-
-    // Paginación
-    if (totalPages <= 1) {
-        paginEl.innerHTML = '';
-        return;
-    }
-
-    let pHtml = `<div class="d-flex flex-column align-items-center gap-1">
-        <ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center">`;
-
-    pHtml += `<li class="page-item ${_accountPage === 1 ? 'disabled' : ''}">
-        <button class="page-link" onclick="changeAccountPage(${_accountPage - 1})">
-            <i class="fas fa-chevron-left"></i></button></li>`;
-
-    for (let i = 1; i <= totalPages; i++) {
-        const nearCurrent = Math.abs(i - _accountPage) <= 1;
-        const isEdge      = i === 1 || i === totalPages;
-
-        if (!nearCurrent && !isEdge) {
-            if (i === 2 || i === totalPages - 1) {
-                pHtml += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
-            }
-            continue;
-        }
-        pHtml += `<li class="page-item ${i === _accountPage ? 'active' : ''}">
-            <button class="page-link" onclick="changeAccountPage(${i})">${i}</button></li>`;
-    }
-
-    pHtml += `<li class="page-item ${_accountPage === totalPages ? 'disabled' : ''}">
-        <button class="page-link" onclick="changeAccountPage(${_accountPage + 1})">
-            <i class="fas fa-chevron-right"></i></button></li>`;
-
-    pHtml += `</ul>
-        <small class="text-muted">${total} transacción${total !== 1 ? 'es' : ''} en total</small>
-    </div>`;
-
-    paginEl.innerHTML = pHtml;
-}
-
-function changeAccountPage(page) {
-    const totalPages = Math.ceil(_accountTransactions.length / ACCOUNT_PAGE_SIZE);
-    if (page < 1 || page > totalPages) return;
-    _accountPage = page;
-    renderAccountPage();
-    document.getElementById('acc-history-tbody')
-        .closest('.table-responsive')
-        .scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-// Botón aplicar filtros
-document.getElementById('btn-acc-apply-filters').addEventListener('click', function () {
-    const accountId = document.getElementById('acc-history-id').value;
-    if (accountId) loadAccountTransactions(accountId);
-});
-
-// ============================================
-// ABRIR MODAL DE EDICIÓN CON DATOS PRELLENADOS
-// ============================================
-function openEditModal(account) {
-    document.getElementById('edit-account-id').value      = account.id;
-    document.getElementById('edit-acc-name').value        = account.name;
-    document.getElementById('edit-acc-type').value        = account.type;
-    document.getElementById('edit-acc-currency').value    = account.currency_code;
-
-    const editModal = new bootstrap.Modal(document.getElementById('editAccountModal'));
-    editModal.show();
-}
-
-// ============================================
-// ELIMINAR CUENTA (con confirmación)
-// ============================================
-function deleteAccount(accountId, accountName) {
-    Swal.fire({
-        title: '¿Eliminar cuenta?',
-        html: `Estás seguro que deseas eliminar <strong>${escapeHtml(accountName)}</strong>?<br>Esta acción no se puede deshacer.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const body = new URLSearchParams({
-                action: 'delete_account',
-                account_id: accountId
-            });
-
-            fetch(ACCOUNTS_AJAX_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: body.toString(),
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) {
-                    showError(data.message, data.full_message);
-                    return;
-                }
-                showSuccess(data.message);
-                const card = document.getElementById(`account-card-${accountId}`);
-                if (card) card.remove();
-                if (document.querySelectorAll('#accounts-list .col-md-4').length === 0) {
-                    document.getElementById('accounts-list').innerHTML = renderEmptyState();
-                }
-                loadAccounts();
-            })
-            .catch(err => {
-                showError('Error al eliminar la cuenta.', err.message);
-            });
-        }
-    });
-}
-
-// ============================================
-// GUARDAR CAMBIOS DE EDICIÓN
-// ============================================
-document.getElementById('btn-update-account').addEventListener('click', function() {
-    const accountId = document.getElementById('edit-account-id').value;
-    const name      = document.getElementById('edit-acc-name').value.trim();
-    const type      = document.getElementById('edit-acc-type').value;
-    const currency  = document.getElementById('edit-acc-currency').value;
-
-    if (!name) {
-        showError('El nombre de la cuenta es obligatorio.');
-        return;
-    }
-
-    const btnText    = document.getElementById('btn-update-text');
-    const btnSpinner = document.getElementById('btn-update-spinner');
-    btnText.textContent = 'Guardando...';
-    btnSpinner.classList.remove('d-none');
-    this.disabled = true;
-
-    const body = new URLSearchParams({
-        action:        'update_account',
-        account_id:    accountId,
-        name:          name,
-        type:          type,
-        currency_code: currency
-    });
+function loadAccountTx(id) {
+    const container = document.getElementById('acc-history-container');
+    container.innerHTML = '<div class="acc-loading"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div><span>Cargando…</span></div>';
+    document.getElementById('acc-history-summary').style.display = 'none';
 
     fetch(ACCOUNTS_AJAX_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
+        body: new URLSearchParams({
+            action:     'get_account_transactions',
+            account_id: id,
+            date_from:  document.getElementById('acc-filter-date-from').value,
+            date_to:    document.getElementById('acc-filter-date-to').value,
+            type:       document.getElementById('acc-filter-type').value,
+        }),
     })
     .then(r => r.json())
     .then(data => {
-        if (!data.success) {
-            showError(data.message, data.full_message);
-            return;
+        if (!data.success) { accShowError(data.message, data.full_message); return; }
+
+        _accTxAll  = data.transactions || [];
+        _accSymbol = data.currency_symbol || '';
+        _accPage   = 1;
+
+        // Resumen
+        let inc = 0, exp = 0;
+        _accTxAll.forEach(t => {
+            const a = parseFloat(t.amount) || 0;
+            if (t.type === 'income')  inc += a;
+            if (t.type === 'expense') exp += a;
+        });
+        if (_accTxAll.length) {
+            const net   = inc - exp;
+            const s     = _accSymbol;
+            const fmt2  = v => v.toLocaleString('es-DO', { minimumFractionDigits: 2 });
+            document.getElementById('acc-summary-income').textContent  = s + ' ' + fmt2(inc);
+            document.getElementById('acc-summary-expense').textContent = s + ' ' + fmt2(exp);
+            const netEl = document.getElementById('acc-summary-net');
+            netEl.textContent = s + ' ' + fmt2(Math.abs(net));
+            netEl.style.color = net >= 0 ? '#1D9E75' : '#D85A30';
+            const sumBar = document.getElementById('acc-history-summary');
+            sumBar.style.display = 'grid';
+            sumBar.style.gridTemplateColumns = '1fr 1fr 1fr';
+            sumBar.style.gap = '10px';
+            sumBar.style.marginBottom = '18px';
         }
 
-        showSuccess(data.message);
-        bootstrap.Modal.getInstance(document.getElementById('editAccountModal')).hide();
+        // Hint móvil
+        const hint = document.getElementById('accSwipeHint');
+        if (hint) hint.style.display = window.innerWidth < 768 && _accTxAll.length ? 'block' : 'none';
 
-        const card = document.getElementById(`account-card-${accountId}`);
-        if (card) {
-            card.outerHTML = renderAccountCard(data.account);
-            attachCardEvents();
-        }
-
-        loadAccounts();
+        renderAccPage();
     })
     .catch(err => {
-        showError('No se pudo actualizar la cuenta.', err.message);
+        accShowError('Error de conexión.', err.message);
+        document.getElementById('acc-history-container').innerHTML =
+            '<div class="acc-empty"><p style="color:#D85A30">Error al cargar transacciones.</p></div>';
+    });
+}
+
+function renderAccPage() {
+    const container = document.getElementById('acc-history-container');
+    const countEl   = document.getElementById('acc-history-count');
+    const paginEl   = document.getElementById('acc-pagination');
+
+    if (!_accTxAll.length) {
+        container.innerHTML = `<div class="acc-empty">
+            <div class="acc-empty-icon" style="font-size:28px;opacity:.3">📭</div>
+            <p>No hay transacciones que coincidan</p></div>`;
+        countEl.textContent  = '';
+        paginEl.innerHTML    = '';
+        return;
+    }
+
+    const total      = _accTxAll.length;
+    const totalPages = Math.ceil(total / ACC_PAGE);
+    const start      = (_accPage - 1) * ACC_PAGE;
+    const end        = Math.min(start + ACC_PAGE, total);
+    const slice      = _accTxAll.slice(start, end);
+
+    const dotCls = { income: 'hdot-inc', expense: 'hdot-exp', transfer: 'hdot-trf' };
+    const amtCls = { income: 'hamt-inc', expense: 'hamt-exp', transfer: 'hamt-trf' };
+    const icons  = { income: '↓', expense: '↑', transfer: '⇄' };
+    const signs  = { income: '+', expense: '−', transfer: '' };
+
+    // ── MÓVIL ──
+    const mobileHtml = '<div class="acc-hist-list">' + slice.map(t => {
+        const d   = dotCls[t.type] || 'hdot-trf';
+        const a   = amtCls[t.type] || 'hamt-trf';
+        const ico = icons[t.type]  || '⇄';
+        const sgn = signs[t.type]  || '';
+        const sym = accEsc(t.currency_symbol || _accSymbol);
+        const amt = parseFloat(t.amount).toLocaleString('es-DO', { minimumFractionDigits: 2 });
+        const dt  = t.date ? new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', { day:'2-digit', month:'2-digit', year:'numeric' }) : '—';
+        return `
+        <div class="acc-hist-item">
+            <div class="acc-hist-scroll" id="ahs${t.id}">
+                <div class="acc-hist-panel">
+                    <div class="acc-hist-dot ${d}">${ico}</div>
+                    <div class="acc-hist-main">
+                        <div class="acc-hist-cat">${accEsc(t.category_name || 'Sin categoría')}</div>
+                        <div class="acc-hist-date">${dt}</div>
+                    </div>
+                    <div class="acc-hist-amt">
+                        <div class="acc-hist-amt-main ${a}">${sgn} ${sym} ${amt}</div>
+                    </div>
+                </div>
+                <div class="acc-hist-panel-extra">
+                    <div class="acc-hist-extra-col">
+                        <div class="acc-ex-label">Descripción</div>
+                        <div class="acc-ex-val">${accEsc(t.description || '—')}</div>
+                    </div>
+                    <div class="acc-ex-divider"></div>
+                    <div class="acc-hist-extra-col">
+                        <div class="acc-ex-label">Tipo</div>
+                        <div class="acc-ex-val">${t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Gasto' : 'Transferencia'}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="acc-hist-dots">
+                <div class="acc-dot-ind active" id="ahd0-${t.id}"></div>
+                <div class="acc-dot-ind" id="ahd1-${t.id}"></div>
+            </div>
+        </div>`;
+    }).join('') + '</div>';
+
+    // ── DESKTOP ──
+    const desktopRows = slice.map(t => {
+        const bCls = t.type === 'income' ? 'abadge-inc' : t.type === 'expense' ? 'abadge-exp' : 'abadge-trf';
+        const aCls = amtCls[t.type] || 'hamt-trf';
+        const sgn  = signs[t.type] || '';
+        const sym  = accEsc(t.currency_symbol || _accSymbol);
+        const amt  = parseFloat(t.amount).toLocaleString('es-DO', { minimumFractionDigits: 2 });
+        const lbl  = t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Gasto' : 'Transferencia';
+        const dt   = t.date ? new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        return `<tr>
+            <td style="white-space:nowrap;color:#9ca3af;font-size:12px">${dt}</td>
+            <td>${accEsc(t.description || '—')}</td>
+            <td>${accEsc(t.category_name || '—')}</td>
+            <td><span class="acc-badge ${bCls}">${lbl}</span></td>
+            <td style="text-align:right" class="${aCls}">${sgn} ${sym} ${amt}</td>
+        </tr>`;
+    }).join('');
+
+    const desktopHtml = `<div class="acc-hist-table-wrap">
+        <table class="acc-hist-table">
+            <thead><tr>
+                <th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Tipo</th>
+                <th style="text-align:right">Monto</th>
+            </tr></thead>
+            <tbody>${desktopRows}</tbody>
+        </table>
+    </div>`;
+
+    container.innerHTML = mobileHtml + desktopHtml;
+
+    // Dots scroll móvil
+    slice.forEach(t => {
+        const sc = document.getElementById('ahs' + t.id);
+        if (!sc) return;
+        sc.addEventListener('scroll', () => {
+            const at = sc.scrollLeft > sc.scrollWidth * 0.3;
+            document.getElementById('ahd0-' + t.id)?.classList.toggle('active', !at);
+            document.getElementById('ahd1-' + t.id)?.classList.toggle('active', at);
+        });
+    });
+
+    // Contador
+    countEl.textContent = `${start + 1}–${end} de ${total} transacciones`;
+
+    // Paginación
+    if (totalPages <= 1) { paginEl.innerHTML = ''; return; }
+    let ph = '<div class="acc-pagination">';
+    ph += `<a class="acc-pag-btn ${_accPage<=1?'disabled':''}" href="#" onclick="changeAccPage(1);return false;">«</a>`;
+    ph += `<a class="acc-pag-btn ${_accPage<=1?'disabled':''}" href="#" onclick="changeAccPage(${_accPage-1});return false;">‹</a>`;
+    const s2 = Math.max(1, _accPage-2), e2 = Math.min(totalPages, _accPage+2);
+    if (s2>1) ph += `<span class="acc-pag-btn disabled">…</span>`;
+    for (let i=s2; i<=e2; i++)
+        ph += `<a class="acc-pag-btn ${i===_accPage?'active':''}" href="#" onclick="changeAccPage(${i});return false;">${i}</a>`;
+    if (e2<totalPages) ph += `<span class="acc-pag-btn disabled">…</span>`;
+    ph += `<a class="acc-pag-btn ${_accPage>=totalPages?'disabled':''}" href="#" onclick="changeAccPage(${_accPage+1});return false;">›</a>`;
+    ph += `<a class="acc-pag-btn ${_accPage>=totalPages?'disabled':''}" href="#" onclick="changeAccPage(${totalPages});return false;">»</a>`;
+    ph += '</div>';
+    paginEl.innerHTML = ph;
+}
+
+function changeAccPage(p) {
+    const total = Math.ceil(_accTxAll.length / ACC_PAGE);
+    if (p < 1 || p > total) return;
+    _accPage = p;
+    renderAccPage();
+    document.getElementById('acc-history-container').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+document.getElementById('btn-acc-apply-filters').addEventListener('click', () => {
+    const id = document.getElementById('acc-history-id').value;
+    if (id) loadAccountTx(id);
+});
+
+// ─── Editar cuenta ────────────────────────────
+
+function openEditModal(acc) {
+    document.getElementById('edit-account-id').value   = acc.id;
+    document.getElementById('edit-acc-name').value     = acc.name;
+    document.getElementById('edit-acc-type').value     = acc.type;
+    document.getElementById('edit-acc-currency').value = acc.currency_code;
+    new bootstrap.Modal(document.getElementById('editAccountModal')).show();
+}
+
+document.getElementById('btn-update-account').addEventListener('click', function () {
+    const id       = document.getElementById('edit-account-id').value;
+    const name     = document.getElementById('edit-acc-name').value.trim();
+    const type     = document.getElementById('edit-acc-type').value;
+    const currency = document.getElementById('edit-acc-currency').value;
+    if (!name) { accShowError('El nombre es obligatorio.'); return; }
+
+    const txt = document.getElementById('btn-update-text');
+    const spn = document.getElementById('btn-update-spinner');
+    txt.textContent = 'Guardando…'; spn.classList.remove('d-none'); this.disabled = true;
+
+    fetch(ACCOUNTS_AJAX_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action:'update_account', account_id:id, name, type, currency_code:currency }),
     })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) { accShowError(data.message, data.full_message); return; }
+        accShowSuccess(data.message);
+        bootstrap.Modal.getInstance(document.getElementById('editAccountModal')).hide();
+        loadAccounts();
+    })
+    .catch(err => accShowError('No se pudo actualizar la cuenta.', err.message))
     .finally(() => {
-        btnText.textContent = 'Guardar Cambios';
-        btnSpinner.classList.add('d-none');
+        txt.textContent = 'Guardar Cambios'; spn.classList.add('d-none');
         document.getElementById('btn-update-account').disabled = false;
     });
 });
 
-// ============================================
-// CREAR CUENTA
-// ============================================
+// ─── Eliminar cuenta ──────────────────────────
+
+function deleteAccount(id, name) {
+    Swal.fire({
+        title: '¿Eliminar cuenta?',
+        html: `¿Seguro que deseas eliminar <strong>${accEsc(name)}</strong>?<br>Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        fetch(ACCOUNTS_AJAX_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action:'delete_account', account_id:id }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { accShowError(data.message, data.full_message); return; }
+            accShowSuccess(data.message);
+            loadAccounts();
+        })
+        .catch(err => accShowError('Error al eliminar la cuenta.', err.message));
+    });
+}
+
+// ─── Crear cuenta ─────────────────────────────
+
 document.getElementById('btn-create-account').addEventListener('click', function () {
     const name     = document.getElementById('acc-name').value.trim();
     const type     = document.getElementById('acc-type').value;
     const currency = document.getElementById('acc-currency').value;
     const balance  = document.getElementById('acc-balance').value || '0';
+    if (!name) { accShowError('El nombre de la cuenta es obligatorio.'); return; }
 
-    if (!name) {
-        showError('El nombre de la cuenta es obligatorio.');
-        return;
-    }
-
-    const btnText    = document.getElementById('btn-create-text');
-    const btnSpinner = document.getElementById('btn-create-spinner');
-    btnText.textContent = 'Creando...';
-    btnSpinner.classList.remove('d-none');
-    this.disabled = true;
-
-    const body = new URLSearchParams({
-        action:          'create_account',
-        name:            name,
-        type:            type,
-        currency_code:   currency,
-        initial_balance: balance,
-    });
+    const txt = document.getElementById('btn-create-text');
+    const spn = document.getElementById('btn-create-spinner');
+    txt.textContent = 'Creando…'; spn.classList.remove('d-none'); this.disabled = true;
 
     fetch(ACCOUNTS_AJAX_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
+        body: new URLSearchParams({ action:'create_account', name, type, currency_code:currency, initial_balance:balance }),
     })
     .then(r => r.json())
     .then(data => {
-        if (!data.success) {
-            showError(data.message, data.full_message);
-            return;
-        }
-
-        showSuccess(data.message);
+        if (!data.success) { accShowError(data.message, data.full_message); return; }
+        accShowSuccess(data.message);
         bootstrap.Modal.getInstance(document.getElementById('createAccountModal')).hide();
         document.getElementById('acc-name').value    = '';
         document.getElementById('acc-balance').value = '0';
-
-        const list = document.getElementById('accounts-list');
-        const emptyState = document.getElementById('accounts-empty');
-        if (emptyState) emptyState.remove();
-        list.insertAdjacentHTML('afterbegin', renderAccountCard(data.account));
-        attachCardEvents();
-
         loadAccounts();
     })
-    .catch(err => {
-        showError('No se pudo crear la cuenta.', err.message);
-    })
+    .catch(err => accShowError('No se pudo crear la cuenta.', err.message))
     .finally(() => {
-        btnText.textContent = 'Crear Cuenta';
-        btnSpinner.classList.add('d-none');
+        txt.textContent = 'Crear Cuenta'; spn.classList.add('d-none');
         document.getElementById('btn-create-account').disabled = false;
     });
 });
 
-// ============================================
-// UTIL: escapar HTML
-// ============================================
-function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
-// ============================================
-// INICIO
-// ============================================
+// ─── Init ─────────────────────────────────────
 loadAccounts();
 </script>
