@@ -87,7 +87,7 @@ if (empty($base_path)) $base_path = '';
             .main-content {
                 margin-left: 0;
                 width: 100%;
-                padding: 65px 15px 92px 15px; /* top-bar arriba + bottom-nav (76px) + margen */
+                padding: 30px 15px 92px 15px; /* top-bar arriba + bottom-nav (76px) + margen */
             }
 
             /* Ocultar el botón hamburguesa clásico */
