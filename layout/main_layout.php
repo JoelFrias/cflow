@@ -87,7 +87,7 @@ if (empty($base_path)) $base_path = '';
             .main-content {
                 margin-left: 0;
                 width: 100%;
-                padding: 30px 15px 92px 15px; /* top-bar arriba + bottom-nav (76px) + margen */
+                padding: 65px 15px 92px 15px; /* top-bar arriba + bottom-nav (76px) + margen */
             }
 
             /* Ocultar el botón hamburguesa clásico */
@@ -451,7 +451,9 @@ if (empty($base_path)) $base_path = '';
             position: fixed;
             inset: 0;
             z-index: 9999;
-            background: linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+            background: rgba(30, 30, 35, 0.72);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -496,7 +498,7 @@ if (empty($base_path)) $base_path = '';
 
         .cf-loader-text {
             font-size: 0.78rem;
-            color: rgba(255,255,255,0.45);
+            color: rgba(255,255,255,0.6);
             letter-spacing: 0.04em;
             margin: 10px 0 18px;
             text-transform: uppercase;
@@ -751,7 +753,7 @@ if (empty($base_path)) $base_path = '';
     })();
 
     // ════════════════════════════════════════════
-    //  LOADER DE NAVEGACIÓN
+    //  LOADER DE NAVEGACIÓN — compatibilidad móvil
     // ════════════════════════════════════════════
     (function () {
         const loader     = document.getElementById('cfLoader');
@@ -770,21 +772,38 @@ if (empty($base_path)) $base_path = '';
             'profile':      'Mi Perfil',
         };
 
-        function showLoader(text) {
-            loaderText.textContent = text || 'Cargando...';
-            loader.classList.add('visible');
+        // ── Mostrar el loader y GARANTIZAR un frame pintado antes de navegar ──
+        // En móvil (iOS/Android) el browser no pinta entre el click y la
+        // navegación, así que hacemos preventDefault, forzamos dos rAF y
+        // luego navegamos manualmente.
+        function showLoaderThenGo(text, href) {
+            loaderText.textContent = text;
+
+            // Aplicar visibilidad directamente (sin transición CSS) para
+            // que el primer frame ya muestre el overlay completo.
+            loader.style.transition  = 'none';
+            loader.style.opacity     = '1';
+            loader.style.visibility  = 'visible';
+            loader.style.pointerEvents = 'all';
+
+            // Doble requestAnimationFrame: el primero encola el paint,
+            // el segundo se ejecuta DESPUÉS de que el browser ya pintó.
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    window.location.href = href;
+                });
+            });
         }
 
-        // Obtener el módulo de una URL tipo ?module=xxx
         function moduleFromHref(href) {
             try {
-                const url    = new URL(href, window.location.href);
-                const module = url.searchParams.get('module');
-                return module ? (moduleLabels[module] || module) : null;
+                const url = new URL(href, window.location.href);
+                const mod = url.searchParams.get('module');
+                return mod ? (moduleLabels[mod] || mod) : null;
             } catch { return null; }
         }
 
-        // Interceptar todos los enlaces de navegación del layout
+        // ── Interceptar clics en enlaces ──
         document.addEventListener('click', function (e) {
             const link = e.target.closest('a[href]');
             if (!link) return;
@@ -792,28 +811,28 @@ if (empty($base_path)) $base_path = '';
             const href = link.getAttribute('href');
             if (!href || href.startsWith('#') || href.startsWith('javascript')) return;
 
-            // Logout
-            if (href.includes('logout')) {
-                showLoader('Cerrando sesión...');
-                return; // dejar que el navegador siga
-            }
+            // Cancelar la navegación nativa del browser
+            e.preventDefault();
+            e.stopPropagation();
 
-            // Módulo
-            const label = moduleFromHref(href);
-            if (label) {
-                showLoader('Cargando ' + label + '...');
+            if (href.includes('logout')) {
+                showLoaderThenGo('Cerrando sesión...', href);
                 return;
             }
-        }, true); // capture para atrapar antes del drawer close
 
-        // Ocultar si el usuario vuelve atrás (bfcache)
+            const label = moduleFromHref(href);
+            const text  = label ? ('Cargando ' + label + '...') : 'Cargando...';
+            showLoaderThenGo(text, href);
+
+        }, true); // capture phase para interceptar antes de cualquier otro handler
+
+        // ── Ocultar al volver con el botón atrás (bfcache iOS/Android) ──
         window.addEventListener('pageshow', function (e) {
-            if (e.persisted) loader.classList.remove('visible');
-        });
-
-        // Seguridad: ocultar si la página tarda demasiado (no debería pasar)
-        window.addEventListener('load', function () {
-            loader.classList.remove('visible');
+            if (e.persisted) {
+                loader.style.opacity     = '0';
+                loader.style.visibility  = 'hidden';
+                loader.style.pointerEvents = 'none';
+            }
         });
     })();
 
