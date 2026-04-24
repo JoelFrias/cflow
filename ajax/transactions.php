@@ -151,17 +151,21 @@ try {
             $total_records = (int) $count_stmt->fetchColumn();
             $total_pages   = $total_records > 0 ? (int) ceil($total_records / $limit) : 1;
 
-            // Listar con paginación — bindValue separado para LIMIT/OFFSET (siempre enteros)
+            // Listar con paginación
+            // ta = cuenta destino de transferencia
             $list_stmt = $pdo->prepare("
                 SELECT t.*,
                        a.name         AS account_name,
+                       a.type         AS account_type,
                        a.currency_code,
                        c.name         AS category_name,
-                       curr.symbol
+                       curr.symbol,
+                       ta.name        AS transfer_to_account_name
                 FROM transactions t
-                LEFT JOIN accounts   a    ON t.account_id        = a.id
-                LEFT JOIN categories c    ON t.category_id       = c.id
-                LEFT JOIN currencies curr ON t.original_currency = curr.code
+                LEFT JOIN accounts   a    ON t.account_id          = a.id
+                LEFT JOIN categories c    ON t.category_id         = c.id
+                LEFT JOIN currencies curr ON t.original_currency   = curr.code
+                LEFT JOIN accounts   ta   ON t.transfer_to_account = ta.id
                 WHERE {$where_clause}
                 ORDER BY t.date DESC, t.id DESC
                 LIMIT ? OFFSET ?
@@ -191,7 +195,6 @@ try {
         // OBTENER DATOS PARA MODALES (cuentas, categorías, monedas)
         // ============================================================
         case 'get_form_data':
-            // Una sola consulta para categorías de ingreso y gasto usando UNION
             $stmt_accounts = $pdo->prepare("
                 SELECT a.*, c.symbol, c.exchange_rate_to_dop
                 FROM accounts a
@@ -339,6 +342,46 @@ try {
 
             if ($delete_id <= 0) throw new Exception('ID de transacción inválido.');
 
+            // ── Pre-verificación sin bloqueo ──────────────────────
+            $pre_stmt = $pdo->prepare("
+                SELECT t.date, a.type AS account_type
+                FROM transactions t
+                LEFT JOIN accounts a ON t.account_id = a.id
+                WHERE t.id = ? AND t.user_id = ?
+                LIMIT 1
+            ");
+            $pre_stmt->execute([$delete_id, $user_id]);
+            $precheck = $pre_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$precheck) {
+                throw new Exception('Transacción no encontrada o sin permiso para eliminarla.');
+            }
+
+            // Bloquear eliminación de transacciones de tarjetas
+            if (in_array($precheck['account_type'], ['debit_card', 'credit_card'], true)) {
+                echo json_encode([
+                    'success' => false,
+                    'is_card' => true,
+                    'message' => 'Para eliminar transacciones de tarjetas debe hacerlo desde el módulo de tarjetas.',
+                ]);
+                exit;
+            }
+
+            // Bloquear eliminación de transacciones con más de 3 días
+            $txDate   = new DateTime($precheck['date']);
+            $today    = new DateTime('today');
+            $daysDiff = (int) $today->diff($txDate)->days;
+
+            if ($daysDiff > 3) {
+                echo json_encode([
+                    'success' => false,
+                    'is_old'  => true,
+                    'message' => 'No se pueden eliminar transacciones con más de 3 días de antigüedad.',
+                ]);
+                exit;
+            }
+
+            // ── Eliminación real en transacción atómica ───────────
             $pdo->beginTransaction();
 
             // Leer y bloquear la transacción

@@ -776,7 +776,7 @@ function renderInsights(d) {
     const avgExpense = d.total_transactions > 0 && d.total_expense > 0
       ? fmt(d.total_expense / d.total_transactions)
       : null;
-    insights.push({ dot: 'blue', text: `Registraste <strong>${d.total_transactions} transacciones</strong> en el período${avgExpense ? ` con un gasto promedio de ${avgExpense}` : ''}.` });
+    insights.push({ dot: 'blue', text: `Registraste <strong>${d.total_transactions} transacciones</strong> en el período${avgExpense ? `. Con un gasto promedio de <strong>${avgExpense}` : ''}</strong> diario en el periodo.` });
   } else {
     insights.push({ dot: 'muted', text: 'Sin transacciones en el período. Empieza registrando tus movimientos.' });
   }

@@ -11,7 +11,7 @@ $ajax_category_url = 'ajax/create_category.php';
 <div id="transactions-module">
 
     <!-- ── Resumen del período ── -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px" id="summary-bar">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;display:none" id="summary-bar">
         <div class="sum-card">
             <div class="sum-label">Ingresos</div>
             <div class="sum-val sum-inc" id="sum-income">RD$ —</div>
@@ -53,20 +53,18 @@ $ajax_category_url = 'ajax/create_category.php';
                     </select>
                 </div>
                 <div>
-                    <label class="filter-label">Categoría</label>
-                    <select id="filter-category" class="filter-input">
-                        <option value="">Todas las categorías</option>
-                        <optgroup label="Ingresos" id="filter-income-group"></optgroup>
-                        <optgroup label="Gastos"   id="filter-expense-group"></optgroup>
-                    </select>
-                </div>
-                <div>
                     <label class="filter-label">Tipo</label>
                     <select id="filter-type" class="filter-input">
                         <option value="">Todos</option>
                         <option value="income">Ingresos</option>
                         <option value="expense">Gastos</option>
                         <option value="transfer">Transferencias</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="filter-label">Categoría</label>
+                    <select id="filter-category" class="filter-input">
+                        <option value="">Todas las categorías</option>
                     </select>
                 </div>
                 <div>
@@ -105,7 +103,8 @@ $ajax_category_url = 'ajax/create_category.php';
             <span id="records-info" style="font-size:12px;color:#888"></span>
         </div>
         <button class="btn-new-tx" data-bs-toggle="modal" data-bs-target="#transactionModal">
-            <span style="font-size:16px;line-height:1">+</span> Nueva
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Nueva
         </button>
     </div>
 
@@ -143,50 +142,68 @@ $ajax_category_url = 'ajax/create_category.php';
                 <div class="mb-3">
                     <label class="form-label tx-form-label">Tipo</label>
                     <div class="tx-type-row">
-                        <label class="tx-type-card income-card selected" id="labelIncome">
-                            <input type="radio" name="type" value="income" class="d-none" id="typeIncome" checked>
-                            <span class="tx-type-icon tx-icon-inc">↓</span>
+                        <label class="tx-type-card income-card" id="labelIncome">
+                            <input type="radio" name="type" value="income" class="d-none" id="typeIncome">
+                            <span class="tx-type-icon tx-icon-inc">
+                                <!-- Flecha abajo (ingreso) -->
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="9"/>
+                                    <path d="M12 8v8M8.5 14.5l3.5 3.5 3.5-3.5"/>
+                                </svg>
+                            </span>
                             <span class="tx-type-text text-success">Ingreso</span>
                         </label>
-                        <label class="tx-type-card expense-card" id="labelExpense">
-                            <input type="radio" name="type" value="expense" class="d-none" id="typeExpense">
-                            <span class="tx-type-icon tx-icon-exp">↑</span>
+                        <label class="tx-type-card expense-card selected" id="labelExpense">
+                            <input type="radio" name="type" value="expense" class="d-none" id="typeExpense" checked>
+                            <span class="tx-type-icon tx-icon-exp">
+                                <!-- Flecha arriba (gasto) -->
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="9"/>
+                                    <path d="M12 16V8M8.5 11.5l3.5-3.5 3.5 3.5"/>
+                                </svg>
+                            </span>
                             <span class="tx-type-text text-danger">Gasto</span>
                         </label>
                         <label class="tx-type-card transfer-card" id="labelTransfer">
                             <input type="radio" name="type" value="transfer" class="d-none" id="typeTransfer">
-                            <span class="tx-type-icon tx-icon-trf">⇄</span>
+                            <span class="tx-type-icon tx-icon-trf">
+                                <!-- Doble flecha (transferencia) -->
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M5 8h14M15 4l4 4-4 4"/>
+                                    <path d="M19 16H5M9 12l-4 4 4 4"/>
+                                </svg>
+                            </span>
                             <span class="tx-type-text text-primary">Transferencia</span>
                         </label>
                     </div>
                 </div>
 
-                <!-- Cuenta origen -->
+                <!-- ── Cuenta origen (cards) ── -->
                 <div class="mb-3">
-                    <label class="form-label tx-form-label">Cuenta origen</label>
-                    <select id="modal-account-id" class="form-control tx-form-control">
-                        <option value="">Seleccionar cuenta</option>
-                    </select>
+                    <label class="form-label tx-form-label" id="labelAccountOrigin">Cuenta</label>
+                    <div class="account-cards-grid" id="account-cards-origin">
+                        <div style="color:#9ca3af;font-size:13px;padding:10px 0">Cargando cuentas…</div>
+                    </div>
+                    <input type="hidden" id="modal-account-id">
                 </div>
 
-                <!-- Cuenta destino -->
+                <!-- ── Cuenta destino (cards — solo transferencia) ── -->
                 <div class="mb-3 d-none" id="transferToDiv">
                     <label class="form-label tx-form-label">Cuenta destino</label>
-                    <select id="modal-transfer-to" class="form-control tx-form-control">
-                        <option value="">Seleccionar cuenta destino</option>
-                    </select>
+                    <div class="account-cards-grid" id="account-cards-dest"></div>
+                    <input type="hidden" id="modal-transfer-to">
                 </div>
 
-                <!-- Categoría -->
-                <div class="mb-3">
+                <!-- ── Categoría (oculta en transferencias) ── -->
+                <div class="mb-3" id="categoryDiv">
                     <label class="form-label tx-form-label">Categoría</label>
                     <div style="display:flex;gap:8px">
                         <select id="modal-category-id" class="form-control tx-form-control">
                             <option value="">Seleccionar categoría</option>
-                            <optgroup label="Ingresos" id="modal-income-group"></optgroup>
-                            <optgroup label="Gastos"   id="modal-expense-group"></optgroup>
                         </select>
-                        <button type="button" class="btn-add-cat" data-bs-toggle="modal" data-bs-target="#quickCategoryModal" title="Nueva categoría">+</button>
+                        <button type="button" class="btn-add-cat" data-bs-toggle="modal" data-bs-target="#quickCategoryModal" title="Nueva categoría">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -467,8 +484,6 @@ $ajax_category_url = 'ajax/create_category.php';
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 16px;
-    font-weight: 600;
 }
 .dot-inc { background: var(--tx-inc-bg); color: var(--tx-inc-text); }
 .dot-exp { background: var(--tx-exp-bg); color: var(--tx-exp-text); }
@@ -504,7 +519,14 @@ $ajax_category_url = 'ajax/create_category.php';
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.ex-val.wrap {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.4;
+}
 .ex-divider { width: 1px; height: 30px; background: var(--tx-border); flex-shrink: 0; }
+
+/* ── Botón eliminar (normal) ── */
 .btn-del-row {
     width: 34px;
     height: 34px;
@@ -521,6 +543,64 @@ $ajax_category_url = 'ajax/create_category.php';
     transition: background .15s;
 }
 .btn-del-row:hover { background: #fee2e2; }
+
+/* ── Botón tarjeta (móvil) ── */
+.btn-card-info-row {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #3b82f6;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s;
+    line-height: 1;
+}
+.btn-card-info-row:hover { background: #dbeafe; }
+
+/* ── Botón bloqueado por antigüedad (móvil) ── */
+.btn-locked-row {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #d1d5db;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: not-allowed;
+    flex-shrink: 0;
+}
+
+/* ── Ruta de transferencia (móvil) ── */
+.ex-route {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #374151;
+    flex-wrap: wrap;
+}
+.ex-route-arrow {
+    color: var(--tx-trf);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.ex-route-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 70px;
+}
 
 /* ── Dots de posición ── */
 .tx-dots {
@@ -539,43 +619,69 @@ $ajax_category_url = 'ajax/create_category.php';
 }
 .tx-dot-ind.active { background: #6b7280; }
 
-/* ── Tabla DESKTOP ── */
+/* ═══════════════════════════════════════════════
+   TABLA DESKTOP — DISEÑO REFINADO
+   ═══════════════════════════════════════════════ */
 .tx-table-wrap { overflow-x: auto; }
+
+.tx-desktop-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow:
+        0 1px 2px rgba(0,0,0,.04),
+        0 4px 16px rgba(0,0,0,.05);
+}
+
 .tx-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
 }
 .tx-table thead tr {
-    border-bottom: 2px solid #f3f4f6;
+    background: #f9fafb;
+    border-bottom: 1px solid #e9ecef;
 }
 .tx-table thead th {
-    padding: 10px 14px;
+    padding: 11px 16px;
     text-align: left;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
     color: #9ca3af;
     text-transform: uppercase;
-    letter-spacing: .05em;
+    letter-spacing: .06em;
     white-space: nowrap;
 }
+.tx-table thead th:first-child { padding-left: 20px; }
+.tx-table thead th:last-child  { padding-right: 20px; text-align: center; }
+
 .tx-table tbody tr {
-    border-bottom: 1px solid #f9fafb;
-    transition: background .12s;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background .1s;
 }
 .tx-table tbody tr:last-child { border-bottom: none; }
-.tx-table tbody tr:hover { background: #fafafa; }
+.tx-table tbody tr:hover { background: #fafbfc; }
+
 .tx-table td {
-    padding: 11px 14px;
+    padding: 13px 16px;
     color: #374151;
     vertical-align: middle;
 }
-.tx-table .tx-id { color: #9ca3af; font-size: 11px; }
+.tx-table td:first-child { padding-left: 20px; }
+.tx-table td:last-child  { padding-right: 20px; text-align: center; }
+
+.tx-table .tx-id {
+    color: #c4c9d4;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .02em;
+}
 .tx-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 3px 8px;
+    padding: 3px 9px;
     border-radius: 20px;
     font-size: 11px;
     font-weight: 500;
@@ -584,7 +690,72 @@ $ajax_category_url = 'ajax/create_category.php';
 .badge-exp { background: var(--tx-exp-bg); color: var(--tx-exp-text); }
 .badge-trf { background: var(--tx-trf-bg); color: var(--tx-trf-text); }
 .tx-table .amt-col { font-weight: 600; white-space: nowrap; }
-.tx-table .tx-desc { color: #6b7280; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tx-table .tx-desc-cell {
+    color: #6b7280;
+    max-width: 220px;
+    word-break: break-word;
+    white-space: normal;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.tx-desc-empty { color: #d1d5db; font-style: italic; font-size: 12px; }
+
+.tx-route-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.tx-route-line {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #374151;
+}
+.tx-route-dot-from,
+.tx-route-dot-to {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.tx-route-dot-from { background: var(--tx-trf); }
+.tx-route-dot-to   { background: #60a5fa; }
+.tx-route-connector {
+    display: flex;
+    align-items: center;
+    padding-left: 2.5px;
+    height: 6px;
+}
+.tx-route-connector-line {
+    width: 1px;
+    height: 8px;
+    background: #bfdbfe;
+}
+.tx-route-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    min-width: 20px;
+}
+.tx-route-name {
+    color: #374151;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.tx-account-name {
+    font-size: 13px;
+    color: #374151;
+}
+
+/* ── Botones de acción en desktop ── */
 .tx-table .btn-del-table {
     width: 30px;
     height: 30px;
@@ -595,8 +766,43 @@ $ajax_category_url = 'ajax/create_category.php';
     font-size: 12px;
     cursor: pointer;
     transition: background .15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .tx-table .btn-del-table:hover { background: #fee2e2; }
+
+.tx-table .btn-card-info-table {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #3b82f6;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.tx-table .btn-card-info-table:hover { background: #dbeafe; }
+
+.tx-table .btn-locked-table {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #d1d5db;
+    font-size: 12px;
+    cursor: not-allowed;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
 
 /* ── Paginación ── */
 .tx-pagination {
@@ -694,30 +900,113 @@ $ajax_category_url = 'ajax/create_category.php';
 .tx-type-card {
     cursor: pointer;
     border-radius: 10px;
-    border: 1.5px solid #e5e7eb;
+    border: 2px solid #e5e7eb;
     background: #f9fafb;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 10px 6px;
-    gap: 5px;
-    transition: border-color .2s, background .2s;
+    padding: 12px 6px 10px;
+    gap: 7px;
+    transition: border-color .2s, background .2s, box-shadow .2s;
     user-select: none;
 }
 .tx-type-card:hover { background: #f3f4f6; }
+/* Icono: circulo con fondo de color */
 .tx-type-icon {
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .15s;
 }
-.tx-icon-inc { color: var(--tx-inc); }
-.tx-icon-exp { color: var(--tx-exp); }
-.tx-icon-trf { color: var(--tx-trf); }
-.tx-type-text { font-size: 12px; font-weight: 500; }
-.income-card.selected   { border-color: var(--tx-inc); background: var(--tx-inc-bg); }
-.expense-card.selected  { border-color: var(--tx-exp); background: var(--tx-exp-bg); }
-.transfer-card.selected { border-color: var(--tx-trf); background: var(--tx-trf-bg); }
+.tx-type-card:hover .tx-type-icon { transform: scale(1.05); }
+.tx-icon-inc { background: var(--tx-inc-bg);  color: var(--tx-inc); }
+.tx-icon-exp { background: var(--tx-exp-bg);  color: var(--tx-exp); }
+.tx-icon-trf { background: var(--tx-trf-bg);  color: var(--tx-trf); }
+.tx-type-text { font-size: 12px; font-weight: 600; }
+.income-card.selected   { border-color: var(--tx-inc); background: var(--tx-inc-bg); box-shadow: 0 0 0 3px rgba(29,158,117,.1); }
+.expense-card.selected  { border-color: var(--tx-exp); background: var(--tx-exp-bg); box-shadow: 0 0 0 3px rgba(216,90,48,.1); }
+.transfer-card.selected { border-color: var(--tx-trf); background: var(--tx-trf-bg); box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+
+/* ── Cards de selección de cuenta ── */
+.account-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 7px;
+}
+.account-card-item {
+    cursor: pointer;
+    border-radius: 10px;
+    border: 2px solid #e5e7eb;
+    background: #f9fafb;
+    padding: 10px 12px;
+    transition: border-color .18s, background .18s, box-shadow .18s;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+}
+.account-card-item:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+.account-card-item.selected {
+    border-color: #374151;
+    background: #f8f9fb;
+    box-shadow: 0 0 0 3px rgba(55,65,81,.1);
+}
+/* Indicador de selección (esquina superior derecha) */
+.account-card-item.selected::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #374151;
+}
+.acc-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+}
+.acc-card-bal {
+    font-size: 11px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.acc-card-cur {
+    font-size: 9px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-top: 2px;
+    font-weight: 600;
+}
+/* Variante para cuenta destino (borde azul cuando seleccionada) */
+.account-card-item.selected-dest {
+    border-color: var(--tx-trf);
+    background: var(--tx-trf-bg);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+}
+.account-card-item.selected-dest::after {
+    background: var(--tx-trf);
+}
+.account-card-empty {
+    color: #9ca3af;
+    font-size: 13px;
+    padding: 10px 0;
+    grid-column: 1 / -1;
+}
 
 /* ── Responsive: ocultar lista / tabla según pantalla ── */
 .tx-mobile-list  { display: flex; flex-direction: column; gap: 2px; }
@@ -729,6 +1018,7 @@ $ajax_category_url = 'ajax/create_category.php';
     .swipe-hint      { display: none !important; }
     #summary-bar     { grid-template-columns: 1fr 1fr 1fr; }
     .sum-val         { font-size: 18px; }
+    .account-cards-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 }
 </style>
 
@@ -797,6 +1087,50 @@ const TransactionModule = (() => {
         return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    // ─── Restricciones de eliminación ─────────────
+
+    function isOlderThan3Days(dateStr) {
+        const txDate = new Date(dateStr + 'T00:00:00');
+        const today  = new Date();
+        today.setHours(0, 0, 0, 0);
+        return (today - txDate) / 86400000 > 3;
+    }
+
+    function isCardAccount(accountType) {
+        return accountType === 'debit_card' || accountType === 'credit_card';
+    }
+
+    function showCardInfo() {
+        Swal.fire({
+            title: 'Transacción de tarjeta',
+            text: 'Para eliminar transacciones de tarjetas debe hacerlo desde el módulo de tarjetas.',
+            icon: 'info',
+            confirmButtonColor: '#374151',
+            confirmButtonText: 'Entendido',
+        });
+    }
+
+    function getActionBtn(t, mode) {
+        const isDesktop = mode === 'desktop';
+
+        if (isCardAccount(t.account_type)) {
+            return isDesktop
+                ? `<button class="btn-card-info-table" onclick="TransactionModule.showCardInfo()" title="Transacción de tarjeta — gestionar desde módulo de tarjetas">?</button>`
+                : `<button class="btn-card-info-row"   onclick="TransactionModule.showCardInfo()" title="Transacción de tarjeta">?</button>`;
+        }
+
+        if (isOlderThan3Days(t.date)) {
+            const lockIcon = `<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M11 7V5a3 3 0 0 0-6 0v2H3v8h10V7h-2zm-4-2a1 1 0 0 1 2 0v2H7V5z"/></svg>`;
+            return isDesktop
+                ? `<button class="btn-locked-table" title="No eliminable: más de 3 días de antigüedad" disabled>${lockIcon}</button>`
+                : `<button class="btn-locked-row"   title="No eliminable: más de 3 días de antigüedad" disabled>${lockIcon}</button>`;
+        }
+
+        return isDesktop
+            ? `<button class="btn-del-table" onclick="TransactionModule.confirmDelete(${t.id})" title="Eliminar transacción">✕</button>`
+            : `<button class="btn-del-row"   onclick="TransactionModule.confirmDelete(${t.id})" title="Eliminar">✕</button>`;
+    }
+
     // ─── Resumen ──────────────────────────────────
 
     function updateSummary(transactions) {
@@ -813,6 +1147,19 @@ const TransactionModule = (() => {
         balEl.className = 'sum-val ' + (bal >= 0 ? 'sum-inc' : 'sum-exp');
     }
 
+    // ─── SVG íconos para la lista ──────────────────
+
+    function listIcon(type) {
+        if (type === 'income') {
+            return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7 7 7-7"/></svg>`;
+        }
+        if (type === 'expense') {
+            return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7-7 7 7"/></svg>`;
+        }
+        // transfer
+        return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14M15 4l4 4-4 4"/><path d="M19 16H5M9 12l-4 4 4 4"/></svg>`;
+    }
+
     // ─── Render MÓVIL (tarjetas deslizables) ──────
 
     function renderMobile(transactions) {
@@ -821,14 +1168,27 @@ const TransactionModule = (() => {
         return '<div class="tx-mobile-list">' + transactions.map(t => {
             const dotCls = t.type === 'income' ? 'dot-inc' : t.type === 'expense' ? 'dot-exp' : 'dot-trf';
             const amtCls = t.type === 'income' ? 'amt-inc' : t.type === 'expense' ? 'amt-exp' : 'amt-trf';
-            const icon   = t.type === 'income' ? '↓' : t.type === 'expense' ? '↑' : '⇄';
             const dateFmt = new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+            const accountSection = t.type === 'transfer'
+                ? `<div class="tx-extra-col" style="min-width:0">
+                       <div class="ex-label">Ruta</div>
+                       <div class="ex-route">
+                           <span class="ex-route-name">${esc(t.account_name ?? '?')}</span>
+                           <span class="ex-route-arrow">→</span>
+                           <span class="ex-route-name">${esc(t.transfer_to_account_name ?? '?')}</span>
+                       </div>
+                   </div>`
+                : `<div class="tx-extra-col">
+                       <div class="ex-label">Cuenta</div>
+                       <div class="ex-val">${esc(t.account_name ?? '-')}</div>
+                   </div>`;
 
             return `
             <div class="tx-item">
                 <div class="tx-scroll" id="sc${t.id}">
                     <div class="tx-panel">
-                        <div class="tx-dot ${dotCls}">${icon}</div>
+                        <div class="tx-dot ${dotCls}">${listIcon(t.type)}</div>
                         <div class="tx-main">
                             <div class="tx-cat">${esc(t.category_name ?? 'Sin categoría')}</div>
                             <div class="tx-date">${dateFmt}</div>
@@ -839,17 +1199,14 @@ const TransactionModule = (() => {
                         </div>
                     </div>
                     <div class="tx-panel-extra">
-                        <div class="tx-extra-col">
-                            <div class="ex-label">Cuenta</div>
-                            <div class="ex-val">${esc(t.account_name ?? '-')}</div>
-                        </div>
+                        ${accountSection}
                         <div class="ex-divider"></div>
                         <div class="tx-extra-col">
                             <div class="ex-label">Descripción</div>
-                            <div class="ex-val">${esc(t.description || '—')}</div>
+                            <div class="ex-val wrap">${esc(t.description || '—')}</div>
                         </div>
                         <div class="ex-divider"></div>
-                        <button class="btn-del-row" onclick="TransactionModule.confirmDelete(${t.id})" title="Eliminar">✕</button>
+                        ${getActionBtn(t, 'mobile')}
                     </div>
                 </div>
                 <div class="tx-dots">
@@ -864,36 +1221,67 @@ const TransactionModule = (() => {
 
     function renderDesktop(transactions) {
         if (!transactions.length) return '';
+
         const rows = transactions.map(t => {
             const badgeCls = t.type === 'income' ? 'badge-inc' : t.type === 'expense' ? 'badge-exp' : 'badge-trf';
             const label    = t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Gasto' : 'Transferencia';
             const amtCls   = t.type === 'income' ? 'amt-inc' : t.type === 'expense' ? 'amt-exp' : 'amt-trf';
             const dateFmt  = new Date(t.date + 'T00:00:00').toLocaleDateString('es-DO', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+            const accountCell = t.type === 'transfer'
+                ? `<div class="tx-route-wrap">
+                       <div class="tx-route-line">
+                           <div class="tx-route-dot-from"></div>
+                           <span class="tx-route-label">De</span>
+                           <span class="tx-route-name" title="${esc(t.account_name ?? '')}">${esc(t.account_name ?? '—')}</span>
+                       </div>
+                       <div class="tx-route-connector"><div class="tx-route-connector-line"></div></div>
+                       <div class="tx-route-line">
+                           <div class="tx-route-dot-to"></div>
+                           <span class="tx-route-label">A</span>
+                           <span class="tx-route-name" title="${esc(t.transfer_to_account_name ?? '')}">${esc(t.transfer_to_account_name ?? '?')}</span>
+                       </div>
+                   </div>`
+                : `<span class="tx-account-name">${esc(t.account_name ?? '—')}</span>`;
+
+            const descCell = t.description
+                ? `<div class="tx-desc-cell">${esc(t.description)}</div>`
+                : `<span class="tx-desc-empty">—</span>`;
+
             return `
             <tr id="tr-${t.id}">
                 <td class="tx-id">#${t.id}</td>
-                <td>${dateFmt}</td>
-                <td>${esc(t.account_name ?? '-')}</td>
+                <td style="white-space:nowrap">${dateFmt}</td>
+                <td>${accountCell}</td>
                 <td>${esc(t.category_name ?? '—')}</td>
                 <td><span class="tx-badge ${badgeCls}">${label}</span></td>
                 <td class="amt-col ${amtCls}">${esc(t.symbol ?? '')} ${fmt(t.original_amount)} <span style="font-size:10px;font-weight:400;color:#9ca3af">${esc(t.original_currency ?? '')}</span></td>
-                <td style="color:#9ca3af">RD$ ${fmt(t.converted_amount_dop)}</td>
-                <td class="tx-desc">${esc(t.description || '—')}</td>
-                <td><button class="btn-del-table" onclick="TransactionModule.confirmDelete(${t.id})" title="Eliminar">✕</button></td>
+                <td style="color:#9ca3af;white-space:nowrap">RD$ ${fmt(t.converted_amount_dop)}</td>
+                <td>${descCell}</td>
+                <td>${getActionBtn(t, 'desktop')}</td>
             </tr>`;
         }).join('');
 
         return `<div class="tx-desktop-wrap">
-            <div class="tx-table-wrap">
-                <table class="tx-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th><th>Fecha</th><th>Cuenta</th><th>Categoría</th>
-                            <th>Tipo</th><th>Monto</th><th>DOP</th><th>Descripción</th><th></th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
+            <div class="tx-desktop-card">
+                <div class="tx-table-wrap">
+                    <table class="tx-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Cuenta / Ruta</th>
+                                <th>Categoría</th>
+                                <th>Tipo</th>
+                                <th>Monto</th>
+                                <th>DOP</th>
+                                <th>Descripción</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
             </div>
         </div>`;
     }
@@ -910,7 +1298,6 @@ const TransactionModule = (() => {
 
         container.innerHTML = renderMobile(transactions) + renderDesktop(transactions);
 
-        // Activar scroll + dots en móvil
         transactions.forEach(t => {
             const sc = document.getElementById('sc' + t.id);
             if (!sc) return;
@@ -921,7 +1308,6 @@ const TransactionModule = (() => {
             });
         });
 
-        // Mostrar hint móvil solo si hay datos
         const hint = document.getElementById('swipeHint');
         if (hint) hint.style.display = window.innerWidth < 768 ? 'block' : 'none';
     }
@@ -981,6 +1367,146 @@ const TransactionModule = (() => {
         }
     }
 
+    // ─── Cards de cuentas ─────────────────────────
+
+    /**
+     * Renderiza las cards de selección de cuenta.
+     * @param {string}      containerId   - ID del div contenedor
+     * @param {string}      hiddenInputId - ID del input hidden donde se guarda el valor
+     * @param {number|null} selectedId    - ID de la cuenta actualmente seleccionada
+     * @param {number|null} excludeId     - ID de cuenta a excluir (para destino en transferencias)
+     * @param {boolean}     isDest        - Si es la selección de cuenta destino (estilo azul)
+     */
+    function renderAccountCards(containerId, hiddenInputId, selectedId = null, excludeId = null, isDest = false) {
+        const container = document.getElementById(containerId);
+        const hidden    = document.getElementById(hiddenInputId);
+        if (!container || !hidden) return;
+
+        const filtered = excludeId
+            ? _accounts.filter(a => parseInt(a.id) !== parseInt(excludeId))
+            : _accounts;
+
+        if (!filtered.length) {
+            container.innerHTML = '<div class="account-card-empty">No hay cuentas disponibles.</div>';
+            hidden.value = '';
+            return;
+        }
+
+        const selClass = isDest ? 'selected-dest' : 'selected';
+
+        container.innerHTML = filtered.map(a => {
+            const isSelected = selectedId !== null && parseInt(a.id) === parseInt(selectedId);
+            return `<div class="account-card-item ${isSelected ? selClass : ''}"
+                         data-id="${a.id}"
+                         onclick="TransactionModule.selectAccountCard('${containerId}','${hiddenInputId}',${a.id},${isDest})">
+                        <div class="acc-card-name">${esc(a.name)}</div>
+                        <div class="acc-card-bal">${esc(a.symbol || '')} ${fmt(a.balance)}</div>
+                        <div class="acc-card-cur">${esc(a.currency_code)}</div>
+                    </div>`;
+        }).join('');
+
+        // Si había un selectedId válido, reflejarlo en el hidden input
+        const validSelected = filtered.find(a => parseInt(a.id) === parseInt(selectedId));
+        hidden.value = validSelected ? selectedId : '';
+    }
+
+    /**
+     * Maneja el clic en una card de cuenta.
+     */
+    function selectAccountCard(containerId, hiddenInputId, accountId, isDest = false) {
+        const selClass = isDest ? 'selected-dest' : 'selected';
+
+        // Quitar selección previa
+        document.querySelectorAll(`#${containerId} .account-card-item`).forEach(c => {
+            c.classList.remove('selected', 'selected-dest');
+        });
+
+        // Marcar la nueva
+        const card = document.querySelector(`#${containerId} [data-id="${accountId}"]`);
+        if (card) card.classList.add(selClass);
+        document.getElementById(hiddenInputId).value = accountId;
+
+        // Si cambia la cuenta origen en modo transferencia,
+        // refrescar las cards destino excluyendo la nueva origen.
+        if (containerId === 'account-cards-origin') {
+            const type = document.querySelector('input[name="type"]:checked')?.value;
+            if (type === 'transfer') {
+                const currentDest = document.getElementById('modal-transfer-to').value || null;
+                // Si el destino actual es igual a la nueva origen, limpiarlo
+                const newDest = (currentDest && parseInt(currentDest) === parseInt(accountId)) ? null : currentDest;
+                renderAccountCards('account-cards-dest', 'modal-transfer-to', newDest ? parseInt(newDest) : null, accountId, true);
+            }
+        }
+    }
+
+    // ─── Categorías modal (rebuild dinámico — compatible iOS/Android) ──
+
+    /**
+     * Reconstruye las opciones del select de categoría del modal
+     * según el tipo seleccionado. Evita el uso de display:none en
+     * <optgroup> que no funciona en iOS/Android.
+     */
+    function filterModalCategories(type) {
+        const select = document.getElementById('modal-category-id');
+        select.innerHTML = '<option value="">Seleccionar categoría</option>';
+
+        let cats = [];
+        if (type === 'income')  cats = _incomeCats;
+        if (type === 'expense') cats = _expenseCats;
+
+        cats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value       = c.id;
+            opt.textContent = c.name;
+            select.appendChild(opt);
+        });
+
+        if (cats.length > 0) select.value = cats[0].id;
+    }
+
+    /**
+     * Reconstruye las opciones del select de categoría del panel de filtros
+     * según el tipo de filtro activo.
+     */
+    function updateFilterCategories(type) {
+        const select   = document.getElementById('filter-category');
+        const prevVal  = select.value;
+        select.innerHTML = '<option value="">Todas las categorías</option>';
+
+        if (type === '' || type === 'income') {
+            if (type === '') {
+                // Mostrar ambos grupos con optgroup (sin display:none, solo visibles)
+                if (_incomeCats.length) {
+                    const grp = document.createElement('optgroup');
+                    grp.label = 'Ingresos';
+                    _incomeCats.forEach(c => grp.appendChild(new Option(c.name, c.id)));
+                    select.appendChild(grp);
+                }
+            } else {
+                _incomeCats.forEach(c => select.appendChild(new Option(c.name, c.id)));
+            }
+        }
+
+        if (type === '' || type === 'expense') {
+            if (type === '') {
+                if (_expenseCats.length) {
+                    const grp = document.createElement('optgroup');
+                    grp.label = 'Gastos';
+                    _expenseCats.forEach(c => grp.appendChild(new Option(c.name, c.id)));
+                    select.appendChild(grp);
+                }
+            } else {
+                _expenseCats.forEach(c => select.appendChild(new Option(c.name, c.id)));
+            }
+        }
+
+        // Para 'transfer': sin categorías (las transferencias no tienen)
+        // El select queda solo con "Todas las categorías"
+
+        // Intentar restaurar valor previo si sigue disponible
+        if (prevVal) select.value = prevVal;
+    }
+
     // ─── Cargar datos de formulario ───────────────
 
     async function loadFormData() {
@@ -990,21 +1516,19 @@ const TransactionModule = (() => {
             _incomeCats  = data.income_categories;
             _expenseCats = data.expense_categories;
 
-            const accountOpts = _accounts.map(a =>
-                `<option value="${a.id}" data-currency="${a.currency_code}" data-symbol="${a.symbol}">
-                    ${esc(a.name)} (${a.currency_code}) — ${a.symbol} ${fmt(a.balance)}
-                </option>`).join('');
-
-            document.getElementById('modal-account-id').innerHTML  = '<option value="">Seleccionar cuenta</option>' + accountOpts;
-            document.getElementById('modal-transfer-to').innerHTML = '<option value="">Seleccionar cuenta destino</option>' + accountOpts;
-            document.getElementById('filter-account').innerHTML    =
+            // Filtro de cuentas
+            document.getElementById('filter-account').innerHTML =
                 '<option value="">Todas las cuentas</option>' +
                 _accounts.map(a => `<option value="${a.id}">${esc(a.name)} (${a.currency_code})</option>`).join('');
 
-            document.getElementById('modal-income-group').innerHTML  = _incomeCats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-            document.getElementById('modal-expense-group').innerHTML = _expenseCats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-            document.getElementById('filter-income-group').innerHTML = _incomeCats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-            document.getElementById('filter-expense-group').innerHTML= _expenseCats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+            // Render inicial de cards de cuentas (sin selección)
+            renderAccountCards('account-cards-origin', 'modal-account-id');
+
+            // Categorías del filtro
+            updateFilterCategories('');
+
+            // Categorías del modal (por defecto expense)
+            filterModalCategories('expense');
 
         } catch (err) {
             showError(err.message, err.fullMessage);
@@ -1031,11 +1555,15 @@ const TransactionModule = (() => {
             filter_account:'', filter_category:'', filter_type:'',
             filter_min_amount:'', filter_max_amount:'',
             filter_date_from:'', filter_date_to:'', filter_search:'' };
-        ['filter-account','filter-category','filter-type',
+        ['filter-account','filter-type',
          'filter-min-amount','filter-max-amount',
          'filter-date-from','filter-date-to','filter-search']
             .forEach(id => { document.getElementById(id).value = ''; });
         document.getElementById('clearSearchBtn').style.display = 'none';
+
+        // Reconstruir el select de categorías para mostrar todos los tipos
+        updateFilterCategories('');
+
         loadTransactions();
     }
 
@@ -1047,12 +1575,14 @@ const TransactionModule = (() => {
         const type        = document.querySelector('input[name="type"]:checked')?.value;
         const account_id  = document.getElementById('modal-account-id').value;
         const transfer_to = document.getElementById('modal-transfer-to').value;
+        // Para transferencias, se fuerza category_id = 1 (establecido al cambiar tipo)
         const category_id = document.getElementById('modal-category-id').value;
         const amount      = document.getElementById('modal-amount').value;
         const date        = document.getElementById('modal-date').value;
         const description = document.getElementById('modal-description').value;
 
         if (!account_id) { showError('Selecciona una cuenta de origen.'); return; }
+        if (type === 'transfer' && !transfer_to) { showError('Selecciona una cuenta destino.'); return; }
         if (!amount || parseFloat(amount) <= 0) { showError('El monto debe ser mayor a 0.'); return; }
 
         try {
@@ -1121,42 +1651,29 @@ const TransactionModule = (() => {
             bootstrap.Modal.getInstance(document.getElementById('quickCategoryModal'))?.hide();
             document.getElementById('quickCategoryName').value = '';
 
-            const opt = `<option value="${json.category_id}">${esc(name)}</option>`;
+            // Agregar a la lista interna y reconstruir el select del modal
+            const newCat = { id: json.category_id, name };
             if (type === 'income') {
-                document.getElementById('modal-income-group').insertAdjacentHTML('beforeend', opt);
-                document.getElementById('filter-income-group').insertAdjacentHTML('beforeend', opt);
-                _incomeCats.push({ id: json.category_id, name });
-                if (document.querySelector('input[name="type"]:checked')?.value === 'income')
-                    document.getElementById('modal-category-id').value = json.category_id;
+                _incomeCats.push(newCat);
             } else {
-                document.getElementById('modal-expense-group').insertAdjacentHTML('beforeend', opt);
-                document.getElementById('filter-expense-group').insertAdjacentHTML('beforeend', opt);
-                _expenseCats.push({ id: json.category_id, name });
-                if (document.querySelector('input[name="type"]:checked')?.value === 'expense')
-                    document.getElementById('modal-category-id').value = json.category_id;
+                _expenseCats.push(newCat);
             }
+
+            // Reconstruir opciones del modal (aplica al tipo actual)
+            const currentType = document.querySelector('input[name="type"]:checked')?.value;
+            filterModalCategories(currentType);
+
+            // Seleccionar la nueva categoría si coincide con el tipo activo
+            if (currentType === type) {
+                document.getElementById('modal-category-id').value = json.category_id;
+            }
+
+            // Actualizar también el select del filtro
+            updateFilterCategories(document.getElementById('filter-type').value);
+
         } catch (err) {
             Swal.close();
             showError(err.message, err.fullMessage);
-        }
-    }
-
-    // ─── Filtrar categorías según tipo ───────────
-
-    function filterModalCategories(type) {
-        const incG = document.getElementById('modal-income-group');
-        const expG = document.getElementById('modal-expense-group');
-        if (type === 'income') {
-            incG.style.display = ''; expG.style.display = 'none';
-            const first = incG.querySelector('option');
-            if (first) document.getElementById('modal-category-id').value = first.value;
-        } else if (type === 'expense') {
-            incG.style.display = 'none'; expG.style.display = '';
-            const first = expG.querySelector('option');
-            if (first) document.getElementById('modal-category-id').value = first.value;
-        } else {
-            incG.style.display = 'none'; expG.style.display = 'none';
-            document.getElementById('modal-category-id').value = '';
         }
     }
 
@@ -1178,19 +1695,61 @@ const TransactionModule = (() => {
             card.classList.add('selected');
             card.querySelector('input[type="radio"]').checked = true;
             const type = card.querySelector('input[type="radio"]').value;
-            document.getElementById('transferToDiv').classList.toggle('d-none', type !== 'transfer');
-            filterModalCategories(type);
+
+            const isTransfer = type === 'transfer';
+
+            // Mostrar/ocultar cuenta destino
+            document.getElementById('transferToDiv').classList.toggle('d-none', !isTransfer);
+
+            // Mostrar/ocultar categoría
+            document.getElementById('categoryDiv').classList.toggle('d-none', isTransfer);
+
+            if (isTransfer) {
+                // Transferencia: categoría = 1 fija (no visible)
+                document.getElementById('modal-category-id').value = '1';
+
+                // Label de la cuenta origen
+                document.getElementById('labelAccountOrigin').textContent = 'Cuenta origen';
+
+                // Refrescar cards destino (excluyendo la origen actual)
+                const originId = document.getElementById('modal-account-id').value || null;
+                renderAccountCards('account-cards-dest', 'modal-transfer-to', null, originId ? parseInt(originId) : null, true);
+            } else {
+                document.getElementById('labelAccountOrigin').textContent = 'Cuenta';
+
+                // Reconstruir categorías según tipo
+                filterModalCategories(type);
+            }
         });
     });
 
-    // Reset modal al abrir
+    // Reset modal al abrir — por defecto: GASTO
     document.getElementById('transactionModal').addEventListener('shown.bs.modal', () => {
+        // Activar tipo "gasto"
         document.querySelectorAll('.tx-type-card').forEach(c => c.classList.remove('selected'));
-        document.getElementById('labelIncome').classList.add('selected');
-        document.getElementById('typeIncome').checked = true;
+        document.getElementById('labelExpense').classList.add('selected');
+        document.getElementById('typeExpense').checked = true;
+
+        // Ocultar cuenta destino y mostrar categoría
         document.getElementById('transferToDiv').classList.add('d-none');
-        filterModalCategories('income');
+        document.getElementById('categoryDiv').classList.remove('d-none');
+        document.getElementById('labelAccountOrigin').textContent = 'Cuenta';
+
+        // Reconstruir categorías para gasto
+        filterModalCategories('expense');
+
+        // Fecha de hoy
         document.getElementById('modal-date').value = new Date().toISOString().split('T')[0];
+
+        // Refrescar cards de cuentas sin selección
+        renderAccountCards('account-cards-origin', 'modal-account-id');
+    });
+
+    // Filtro: cuando cambia el tipo, actualizar las categorías disponibles
+    document.getElementById('filter-type').addEventListener('change', function () {
+        updateFilterCategories(this.value);
+        // Limpiar valor de categoría si ya no aplica
+        document.getElementById('filter-category').value = '';
     });
 
     // Búsqueda: mostrar/ocultar botón limpiar
@@ -1220,7 +1779,12 @@ const TransactionModule = (() => {
     document.getElementById('modal-date').value = new Date().toISOString().split('T')[0];
     Promise.all([loadFormData(), loadTransactions()]);
 
-    return { applyFilters, clearFilters, goToPage, addTransaction, confirmDelete, createQuickCategory };
+    return {
+        applyFilters, clearFilters, goToPage,
+        addTransaction, confirmDelete,
+        createQuickCategory, showCardInfo,
+        selectAccountCard,  // expuesto para onclick inline de las cards
+    };
 
 })();
 
