@@ -933,10 +933,15 @@ $ajax_category_url = 'ajax/create_category.php';
 
 /* ── Cards de selección de cuenta ── */
 .account-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
     gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+.account-cards-grid::-webkit-scrollbar { display: none; }
 .account-card-item {
     cursor: pointer;
     border-radius: 10px;
@@ -947,6 +952,7 @@ $ajax_category_url = 'ajax/create_category.php';
     user-select: none;
     position: relative;
     overflow: hidden;
+    flex: 0 0 140px;   /* ancho fijo, nunca se encoge */
 }
 .account-card-item:hover {
     background: #f3f4f6;
@@ -1018,7 +1024,8 @@ $ajax_category_url = 'ajax/create_category.php';
     .swipe-hint      { display: none !important; }
     #summary-bar     { grid-template-columns: 1fr 1fr 1fr; }
     .sum-val         { font-size: 18px; }
-    .account-cards-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .account-cards-grid { gap: 9px; }
+    .account-card-item  { flex: 0 0 160px; }
 }
 </style>
 
