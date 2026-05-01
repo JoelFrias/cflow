@@ -5,11 +5,12 @@
 
 require_once '../config/database.php';
 
+// ── Zona horaria ──────────────────────────────────────────────────────────────
+// Ajusta según tu servidor. República Dominicana usa America/Santo_Domingo (UTC-4).
+date_default_timezone_set('America/Santo_Domingo');
+
 header('Content-Type: application/json');
 
-// ── Autenticación ─────────────────────────────────────────────────────────────
-// Usa redirectIfNotLoggedIn() por consistencia con el resto del sistema.
-// El require_once anterior ya garantiza que la sesión está iniciada.
 redirectIfNotLoggedIn();
 
 $user_id = (int) ($_SESSION['user_id'] ?? 0);
@@ -20,11 +21,10 @@ $action  = $_POST['action'] ?? $_GET['action'] ?? '';
 /**
  * Devuelve [date_from, date_to] según el período solicitado.
  * Períodos válidos: current_month | prev_month | current_year | prev_year | custom
- * Para custom se esperan $_POST['date_from'] y $_POST['date_to'] en formato Y-m-d.
  */
 function resolveDateRange(string $period): array
 {
-    $now = new DateTime();
+    $now = new DateTime('now'); // usa la zona horaria configurada arriba
 
     switch ($period) {
         case 'prev_month':
@@ -43,10 +43,8 @@ function resolveDateRange(string $period): array
         case 'custom':
             $from = $_POST['date_from'] ?? $now->format('Y-m-01');
             $to   = $_POST['date_to']   ?? $now->format('Y-m-d');
-            // Validar formato; si no cumple, volver al mes actual
             $from = preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) ? $from : $now->format('Y-m-01');
             $to   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)   ? $to   : $now->format('Y-m-d');
-            // Garantizar que from <= to
             if ($from > $to) [$from, $to] = [$to, $from];
             return [$from, $to];
 
@@ -78,37 +76,55 @@ try {
         // ──────────────────────────────────────────
         case 'get_kpis':
 
-            // 1. Balance total general en DOP
+            // 1. Balance total de cuentas activas (excluyendo tarjetas de crédito
+            //    porque su saldo positivo representa deuda, no activo)
             $stmt = $pdo->prepare("
-                SELECT SUM(a.balance * c.exchange_rate_to_dop) AS total_dop
+                SELECT COALESCE(SUM(a.balance * c.exchange_rate_to_dop), 0) AS total_dop
                 FROM   accounts a
                 JOIN   currencies c ON a.currency_code = c.code
                 WHERE  a.user_id = ?
+                  AND  a.type != 'credit_card'
+                  AND  a.is_active = 1
             ");
             $stmt->execute([$user_id]);
             $total_dop = (float) ($stmt->fetchColumn() ?? 0);
 
-            // Tasa USD → no requiere parámetro de usuario, sin datos sensibles
+            // Tasa USD
             $stmt_usd = $pdo->query("SELECT exchange_rate_to_dop FROM currencies WHERE code = 'USD' LIMIT 1");
             $usd_rate  = (float) ($stmt_usd->fetchColumn() ?: 1);
             $total_usd = $usd_rate > 0 ? $total_dop / $usd_rate : 0;
 
-            // 2. Balance adeudado — deudas y tarjetas de crédito en una sola consulta
+            // 2. Balance adeudado:
+            //    - Deudas pendientes (almacenadas en DOP)
+            //    - Tarjetas de crédito: usan balance_dop / balance_usd (no el campo balance)
             $stmt = $pdo->prepare("
                 SELECT
                     (SELECT COALESCE(SUM(total_amount - paid_amount), 0)
                      FROM   debts
                      WHERE  user_id = ? AND status = 'pending') AS debts_owed,
-                    (SELECT COALESCE(SUM(a.balance * c.exchange_rate_to_dop), 0)
-                    FROM   accounts a
-                    JOIN   currencies c ON a.currency_code = c.code
-                    WHERE  a.user_id = ? AND a.type = 'credit_card' AND a.balance > 0) AS credit_owed
-            ");
-            $stmt->execute([$user_id, $user_id]);
-            $owed_row  = $stmt->fetch(PDO::FETCH_ASSOC);
-            $total_owed = (float) $owed_row['debts_owed'] + (float) $owed_row['credit_owed'];
 
-            // 3. Ingresos / Gastos / Neto en el período
+                    (SELECT COALESCE(SUM(a.balance_dop), 0)
+                     FROM   accounts a
+                     WHERE  a.user_id = ? AND a.type = 'credit_card' AND a.is_active = 1) AS credit_owed_dop,
+
+                    (SELECT COALESCE(SUM(a.balance_usd), 0)
+                     FROM   accounts a
+                     WHERE  a.user_id = ? AND a.type = 'credit_card' AND a.is_active = 1) AS credit_owed_usd
+            ");
+            $stmt->execute([$user_id, $user_id, $user_id]);
+            $owed_row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $debts_owed      = (float) $owed_row['debts_owed'];
+            $credit_owed_dop = (float) $owed_row['credit_owed_dop'];
+            $credit_owed_usd = (float) $owed_row['credit_owed_usd'];
+
+            $total_owed     = $debts_owed + $credit_owed_dop;
+            // Total adeudado en USD: saldo USD de tarjetas + deudas DOP convertidas
+            $total_owed_usd = $credit_owed_usd + ($usd_rate > 0 ? $debts_owed / $usd_rate : 0);
+
+            // 3. Ingresos / Gastos / Neto en el período.
+            //    Solo type IN ('income','expense') — las transferencias entre cuentas
+            //    quedan completamente excluidas de todos los cálculos financieros.
             $stmt = $pdo->prepare("
                 SELECT
                     COALESCE(SUM(CASE WHEN type = 'income'  THEN converted_amount_dop ELSE 0 END), 0) AS total_income,
@@ -116,6 +132,7 @@ try {
                     COUNT(*) AS total_transactions
                 FROM transactions
                 WHERE user_id = ? AND date BETWEEN ? AND ?
+                  AND type IN ('income', 'expense')
             ");
             $stmt->execute([$user_id, $date_from, $date_to]);
             $period_data = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -130,6 +147,7 @@ try {
                 'total_dop'          => round($total_dop, 2),
                 'total_usd'          => round($total_usd, 2),
                 'total_owed'         => round($total_owed, 2),
+                'total_owed_usd'     => round($total_owed_usd, 2),
                 'total_income'       => round($total_income, 2),
                 'total_expense'      => round($total_expense, 2),
                 'net_cashflow'       => round($net_cashflow, 2),
@@ -167,21 +185,21 @@ try {
 
         // ──────────────────────────────────────────
         // Gráfica 2: Tendencia de balance (línea)
-        // Balance acumulado día a día en el período
+        // Solo income/expense — sin transferencias
         // ──────────────────────────────────────────
         case 'get_balance_trend':
 
-            // Balance real actual de las cuentas
+            // Balance real de cuentas no-crédito
             $stmt = $pdo->prepare("
                 SELECT COALESCE(SUM(a.balance * c.exchange_rate_to_dop), 0) AS total_dop
                 FROM   accounts a
                 JOIN   currencies c ON a.currency_code = c.code
-                WHERE  a.user_id = ?
+                WHERE  a.user_id = ? AND a.type != 'credit_card' AND a.is_active = 1
             ");
             $stmt->execute([$user_id]);
             $current_balance = (float) $stmt->fetchColumn();
 
-            // Flujo neto del período para retroceder al balance de inicio
+            // Flujo neto del período (sin transferencias)
             $stmt = $pdo->prepare("
                 SELECT COALESCE(SUM(
                     CASE WHEN type = 'income'  THEN  converted_amount_dop
@@ -190,18 +208,20 @@ try {
                 ), 0) AS period_net
                 FROM transactions
                 WHERE user_id = ? AND date BETWEEN ? AND ?
+                  AND type IN ('income', 'expense')
             ");
             $stmt->execute([$user_id, $date_from, $date_to]);
             $period_net    = (float) $stmt->fetchColumn();
             $balance_start = $current_balance - $period_net;
 
-            // Movimientos diarios dentro del período (una sola consulta)
+            // Movimientos diarios dentro del período
             $stmt = $pdo->prepare("
                 SELECT date,
                        COALESCE(SUM(CASE WHEN type = 'income'  THEN converted_amount_dop ELSE 0 END), 0) AS income,
                        COALESCE(SUM(CASE WHEN type = 'expense' THEN converted_amount_dop ELSE 0 END), 0) AS expense
                 FROM   transactions
                 WHERE  user_id = ? AND date BETWEEN ? AND ?
+                  AND  type IN ('income', 'expense')
                 GROUP  BY date
                 ORDER  BY date ASC
             ");
@@ -233,7 +253,7 @@ try {
             break;
 
         // ──────────────────────────────────────────
-        // Últimas 5 transacciones en el período
+        // Últimas 5 transacciones (sin transferencias)
         // ──────────────────────────────────────────
         case 'get_recent_transactions':
 
@@ -251,6 +271,7 @@ try {
                 LEFT JOIN categories cat  ON t.category_id      = cat.id
                 LEFT JOIN currencies curr ON t.original_currency = curr.code
                 WHERE    t.user_id = ? AND t.date BETWEEN ? AND ?
+                  AND    t.type IN ('income', 'expense')
                 ORDER BY t.date DESC, t.id DESC
                 LIMIT    5
             ");
@@ -263,8 +284,7 @@ try {
             break;
 
         // ──────────────────────────────────────────
-        // Flujo de caja mensual (ingresos vs gastos)
-        // ANTES: 12 consultas en bucle → AHORA: 1 sola consulta
+        // Flujo de caja mensual (sin transferencias)
         // ──────────────────────────────────────────
         case 'get_cashflow_chart':
 
@@ -276,13 +296,13 @@ try {
                          COALESCE(SUM(CASE WHEN type = 'expense' THEN converted_amount_dop ELSE 0 END), 0) AS expense
                 FROM     transactions
                 WHERE    user_id = ? AND YEAR(date) = ?
+                  AND    type IN ('income', 'expense')
                 GROUP BY MONTH(date)
                 ORDER BY month_num ASC
             ");
             $stmt->execute([$user_id, $year]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Indexar por número de mes para acceso O(1)
             $by_month = [];
             foreach ($rows as $row) {
                 $by_month[(int) $row['month_num']] = $row;
@@ -309,7 +329,6 @@ try {
         // ──────────────────────────────────────────
         case 'get_debts':
 
-            // Resumen y próximas deudas en dos consultas enfocadas
             $stmt = $pdo->prepare("
                 SELECT COUNT(*)                        AS total_pending,
                        COALESCE(SUM(total_amount - paid_amount), 0) AS total_amount_pending
@@ -343,7 +362,6 @@ try {
         // ──────────────────────────────────────────
         case 'get_reminders':
 
-            // Reactivar recurrentes vencidos antes de consultar
             _reactivateRecurringReminders($pdo, $user_id);
 
             $stmt = $pdo->prepare("
@@ -367,7 +385,6 @@ try {
         // ──────────────────────────────────────────
         case 'get_savings_goals':
 
-            // Evitar división por cero en ORDER BY con NULLIF
             $stmt = $pdo->prepare("
                 SELECT   id, name, target_amount, current_amount, deadline
                 FROM     savings_goals
@@ -383,9 +400,6 @@ try {
             ]);
             break;
 
-        // ──────────────────────────────────────────
-        // Acción desconocida
-        // ──────────────────────────────────────────
         default:
             jsonError('Acción no reconocida.');
     }
@@ -401,9 +415,6 @@ try {
 
 // ── Funciones auxiliares ──────────────────────────────────────────────────────
 
-/**
- * Calcula la siguiente fecha de un recordatorio recurrente.
- */
 function _calculateNextDate(string $date_str, string $interval): string
 {
     $date = new DateTime($date_str);
@@ -417,13 +428,8 @@ function _calculateNextDate(string $date_str, string $interval): string
     return $date->format('Y-m-d');
 }
 
-/**
- * Reactiva en una sola transacción los recordatorios recurrentes vencidos,
- * evitando duplicados y consultas N+1.
- */
 function _reactivateRecurringReminders(PDO $pdo, int $user_id): void
 {
-    // Traer todos los vencidos de una sola vez
     $stmt = $pdo->prepare("
         SELECT id, title, reminder_date, recurrence_interval
         FROM   reminders
@@ -432,18 +438,14 @@ function _reactivateRecurringReminders(PDO $pdo, int $user_id): void
     $stmt->execute([$user_id]);
     $expired = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    if (empty($expired)) {
-        return;
-    }
+    if (empty($expired)) return;
 
-    // Calcular próximas fechas y filtrar duplicados en una sola consulta
     $next_dates = [];
     foreach ($expired as $r) {
         $next_dates[$r['id']] = _calculateNextDate($r['reminder_date'], $r['recurrence_interval']);
     }
 
-    // Verificar duplicados existentes en lote (IN en lugar de N consultas)
-    $ids        = array_keys($next_dates);
+    $ids          = array_keys($next_dates);
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
     $chk = $pdo->prepare("
@@ -455,15 +457,12 @@ function _reactivateRecurringReminders(PDO $pdo, int $user_id): void
     $chk->execute(array_merge([$user_id], $ids));
     $already_active = array_flip($chk->fetchAll(PDO::FETCH_COLUMN));
 
-    // Actualizar solo los que realmente necesitan reactivarse
     $upd = $pdo->prepare("UPDATE reminders SET reminder_date = ?, completed = 0 WHERE id = ? AND user_id = ?");
 
     $pdo->beginTransaction();
     try {
         foreach ($expired as $r) {
-            if (isset($already_active[$r['id']])) {
-                continue;
-            }
+            if (isset($already_active[$r['id']])) continue;
             $upd->execute([$next_dates[$r['id']], $r['id'], $user_id]);
         }
         $pdo->commit();

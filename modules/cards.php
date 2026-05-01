@@ -33,6 +33,16 @@ if (!isset($_SESSION['user_id'])) {
     --warn-mid: #BA7517;
     --info-light: #eef4fd;
     --info-mid: #185FA5;
+
+    /* History modal tokens (mirrors transactions module) */
+    --h-inc:      #1D9E75;
+    --h-exp:      #D85A30;
+    --h-inc-bg:   #eaf3de;
+    --h-exp-bg:   #faece7;
+    --h-inc-text: #3B6D11;
+    --h-exp-text: #993C1D;
+    --h-border:   #e8e8e8;
+    --h-radius:   10px;
 }
 
 body { background: #f5f5f5; }
@@ -84,17 +94,44 @@ body { background: #f5f5f5; }
 /* =============================================
    SHARED CARD INTERNALS
    ============================================= */
+.card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
 .card-type-badge {
     font-size: 10px;
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 20px;
     display: inline-block;
-    margin-bottom: 8px;
     letter-spacing: 0.03em;
 }
 .badge-credit { background: var(--danger-light); color: var(--danger-mid); }
-.badge-debit  { background: var(--info-light); color: var(--info-mid); }
+.badge-debit  { background: var(--info-light);   color: var(--info-mid); }
+
+/* Edit button */
+.card-edit-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #e0e0e0;
+    background: #f5f5f5;
+    color: #9ca3af;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s;
+    flex-shrink: 0;
+}
+.card-edit-btn:hover {
+    background: var(--info-light);
+    border-color: var(--info-mid);
+    color: var(--info-mid);
+}
 
 .card-name { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #212529; }
 
@@ -153,7 +190,7 @@ body { background: #f5f5f5; }
     gap: 5px;
 }
 .alert-over { background: var(--danger-light); color: var(--danger-mid); }
-.alert-near { background: var(--warn-light); color: var(--warn-mid); }
+.alert-near { background: var(--warn-light);   color: var(--warn-mid); }
 
 /* =============================================
    MOBILE: SLIDER (max 767px)
@@ -287,6 +324,307 @@ body { background: #f5f5f5; }
 .empty-state { text-align: center; padding: 48px 16px; color: var(--muted); }
 .empty-state i { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.3; display: block; }
 .empty-state p { font-size: 14px; margin-bottom: 16px; }
+
+/* =============================================
+   HISTORY MODAL — REDESIGN (mirrors transactions module)
+   ============================================= */
+
+/* Filter toggle header */
+.hist-filter-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: #fafafa;
+    border-bottom: 1px solid var(--h-border);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+.hist-filter-toggle:hover { background: #f3f4f6; }
+.hist-filter-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #6c757d;
+}
+.hist-filter-chevron { transition: transform 0.2s; color: #9ca3af; }
+.hist-filter-chevron.open { transform: rotate(180deg); }
+.hist-filters-active-badge {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 20px;
+}
+
+/* Filter panel */
+.hist-filter-panel {
+    padding: 14px 20px;
+    background: #fff;
+    border-bottom: 1px solid var(--h-border);
+}
+.hist-filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+@media (max-width: 576px) {
+    .hist-filter-grid { grid-template-columns: 1fr 1fr; }
+}
+.hist-filter-label {
+    display: block;
+    font-size: 10px;
+    color: #9ca3af;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.hist-filter-input {
+    width: 100%;
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--h-border);
+    border-radius: 8px;
+    background: #fafafa;
+    color: #374151;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.hist-filter-input:focus { border-color: #a5b4fc; background: #fff; }
+.hist-btn-apply {
+    padding: 7px 18px;
+    background: #374151;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.hist-btn-apply:hover { background: #1f2937; }
+.hist-btn-clear {
+    padding: 7px 14px;
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid var(--h-border);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.hist-btn-clear:hover { background: #e5e7eb; }
+
+/* Controls bar (records info) */
+.hist-controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px;
+    background: #fff;
+    border-bottom: 1px solid var(--h-border);
+}
+.hist-records-info { font-size: 12px; color: #9ca3af; }
+
+/* Loading / empty */
+.hist-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 20px;
+    color: #9ca3af;
+    font-size: 14px;
+}
+.hist-empty {
+    text-align: center;
+    padding: 50px 20px;
+    color: #9ca3af;
+    font-size: 14px;
+}
+.hist-empty-icon { font-size: 30px; margin-bottom: 8px; opacity: 0.4; display: block; }
+
+/* ── Mobile list (inside history modal) ── */
+.hist-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
+}
+.hist-item {
+    background: #fff;
+    border: 1px solid var(--h-border);
+    border-radius: var(--h-radius);
+    overflow: hidden;
+}
+.hist-item-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    min-height: 64px;
+}
+.hist-dot-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.hdot-exp { background: var(--h-exp-bg); color: var(--h-exp-text); }
+.hdot-pay { background: var(--success-light); color: var(--success-mid); }
+.hist-main { flex: 1; min-width: 0; }
+.hist-desc {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.hist-cat  { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+.hist-date { font-size: 11px; color: #b0b7c3; }
+.hist-amount-col { text-align: right; flex-shrink: 0; }
+.hist-amt-main { font-size: 14px; font-weight: 600; }
+.hamt-exp { color: var(--h-exp); }
+.hamt-pay { color: var(--success-mid); }
+.hist-amt-sub { font-size: 10px; color: #9ca3af; margin-top: 1px; }
+.hist-type-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-block;
+}
+.hbadge-exp { background: var(--h-exp-bg);   color: var(--h-exp-text); }
+.hbadge-pay { background: var(--success-light); color: var(--success-mid); }
+
+/* ── Desktop table (inside history modal) ── */
+.hist-desktop-wrap { display: none; }
+.hist-desktop-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.05);
+    margin: 12px 16px;
+}
+.hist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.hist-table thead tr {
+    background: #f9fafb;
+    border-bottom: 1px solid #e9ecef;
+}
+.hist-table thead th {
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+.hist-table thead th:first-child { padding-left: 20px; }
+.hist-table thead th:last-child  { padding-right: 20px; text-align: center; }
+.hist-table tbody tr {
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.1s;
+}
+.hist-table tbody tr:last-child { border-bottom: none; }
+.hist-table tbody tr:hover { background: #fafbfc; }
+.hist-table td {
+    padding: 12px 16px;
+    color: #374151;
+    vertical-align: middle;
+}
+.hist-table td:first-child { padding-left: 20px; }
+.hist-table td:last-child  { padding-right: 20px; text-align: center; }
+.hist-tbl-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.hist-tbl-amt { font-weight: 600; white-space: nowrap; }
+.hist-tbl-desc { color: #6b7280; font-size: 12px; max-width: 200px; word-break: break-word; }
+.hist-tbl-muted { color: #9ca3af; font-size: 12px; }
+.btn-del-hist {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #dc2626;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-del-hist:hover { background: #fee2e2; }
+.btn-locked-hist {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #d1d5db;
+    font-size: 12px;
+    cursor: not-allowed;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Responsive for history modal ── */
+@media (min-width: 768px) {
+    .hist-mobile-list { display: none !important; }
+    .hist-desktop-wrap { display: block !important; }
+}
+@media (max-width: 767px) {
+    .hist-desktop-wrap { display: none !important; }
+    .hist-mobile-list  { display: flex !important; }
+}
+
+/* Pagination (history modal) */
+.hist-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+}
+.hpag-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--h-border);
+    background: #fff;
+    color: #6b7280;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.12s;
+    text-decoration: none;
+}
+.hpag-btn:hover { background: #f3f4f6; color: #1f2937; }
+.hpag-btn.active { background: #374151; color: #fff; border-color: #374151; }
+.hpag-btn.disabled { opacity: 0.4; pointer-events: none; cursor: default; }
 </style>
 </head>
 <body>
@@ -409,6 +747,55 @@ body { background: #f5f5f5; }
                 <button type="button" class="btn btn-primary" id="btn-create-card">
                     <span id="btn-create-card-text">Crear Tarjeta</span>
                     <span id="btn-create-card-spinner" class="spinner-border spinner-border-sm d-none"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL: EDITAR TARJETA  ← NEW              -->
+<!-- ============================================ -->
+<div class="modal fade" id="editCardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-pencil-alt me-2"></i>Editar Tarjeta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-card-id">
+                <div class="mb-3">
+                    <label class="form-label">Nombre de la tarjeta</label>
+                    <input type="text" id="edit-card-name" class="form-control" placeholder="Ej: Visa Platinum" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Tipo</label>
+                    <select id="edit-card-type" class="form-control" required>
+                        <option value="debit_card">Tarjeta de Débito</option>
+                        <option value="credit_card">Tarjeta de Crédito</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Límite (USD)</label>
+                        <input type="number" step="0.01" id="edit-card-limit-usd" class="form-control" placeholder="Opcional (dejar vacío para sin límite)">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Límite (DOP)</label>
+                        <input type="number" step="0.01" id="edit-card-limit-dop" class="form-control" placeholder="Opcional (dejar vacío para sin límite)">
+                    </div>
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i>
+                    <small>Los balances existentes no se modifican al editar la tarjeta.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-save-edit-card">
+                    <span id="btn-edit-card-text">Guardar cambios</span>
+                    <span id="btn-edit-card-spinner" class="spinner-border spinner-border-sm d-none"></span>
                 </button>
             </div>
         </div>
@@ -548,73 +935,80 @@ body { background: #f5f5f5; }
 </div>
 
 <!-- ============================================ -->
-<!-- MODAL: HISTORIAL COMPLETO                   -->
+<!-- MODAL: HISTORIAL COMPLETO  ← REDESIGNED    -->
 <!-- ============================================ -->
 <div class="modal fade" id="transactionsHistoryModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-history me-2"></i> Historial de <span id="history-card-name">Tarjeta</span>
+        <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;">
+            <div class="modal-header" style="background:#374151;border:none;border-radius:0;padding:14px 20px;">
+                <h5 class="modal-title" style="font-size:15px;font-weight:500;color:#fff;">
+                    <i class="fas fa-history me-2" style="opacity:.8"></i>
+                    Historial — <span id="history-card-name" style="font-weight:700;"></span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+
+            <!-- Body sin padding propio (cada sección maneja el suyo) -->
+            <div class="modal-body p-0" style="background:#f6f7f9;">
                 <input type="hidden" id="history-card-id">
-                <div class="row g-2 mb-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Fecha desde</label>
-                        <input type="date" id="filter-date-from" class="form-control">
+
+                <!-- Filter toggle -->
+                <div class="hist-filter-toggle" id="histFilterToggleBtn">
+                    <div class="hist-filter-toggle-left">
+                        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M4 8h8M6 12h4"/></svg>
+                        <span>Filtros</span>
+                        <span class="hist-filters-active-badge d-none" id="hist-filters-badge">activos</span>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Fecha hasta</label>
-                        <input type="date" id="filter-date-to" class="form-control">
+                    <svg class="hist-filter-chevron" id="histFilterChevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+                </div>
+
+                <!-- Filter panel (collapsible) -->
+                <div class="hist-filter-panel" id="histFiltersPanel" style="display:none;">
+                    <div class="hist-filter-grid">
+                        <div>
+                            <label class="hist-filter-label">Fecha desde</label>
+                            <input type="date" id="filter-date-from" class="hist-filter-input">
+                        </div>
+                        <div>
+                            <label class="hist-filter-label">Fecha hasta</label>
+                            <input type="date" id="filter-date-to" class="hist-filter-input">
+                        </div>
+                        <div>
+                            <label class="hist-filter-label">Tipo</label>
+                            <select id="filter-type" class="hist-filter-input">
+                                <option value="">Todos</option>
+                                <option value="expense">Gastos</option>
+                                <option value="payment">Pagos</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Tipo</label>
-                        <select id="filter-type" class="form-select">
-                            <option value="">Todos</option>
-                            <option value="expense">Gasto</option>
-                            <option value="payment">Pago</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button class="btn btn-primary w-100" id="btn-apply-filters">
-                            <i class="fas fa-filter"></i> Aplicar
+                    <div style="display:flex;gap:8px;margin-top:2px;">
+                        <button class="hist-btn-apply" id="btn-apply-filters">
+                            <i class="fas fa-filter me-1"></i> Aplicar
                         </button>
+                        <button class="hist-btn-clear" id="btn-clear-filters">Limpiar</button>
                     </div>
                 </div>
-                <hr>
-                <div class="table-responsive">
-                    <table class="table table-hover table-sm">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Descripción</th>
-                                <th>Categoría</th>
-                                <th>Tipo</th>
-                                <th class="text-end">Monto</th>
-                                <th class="text-end">Balance después</th>
-                                <th class="text-center">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-table-body">
-                            <tr>
-                                <td colspan="7" class="text-center py-3">
-                                    <div class="spinner-border spinner-border-sm text-primary"></div> Cargando...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div id="history-pagination" class="mt-3"></div>
+
+                <!-- Records info bar -->
+                <div class="hist-controls-bar">
+                    <span class="hist-records-info" id="hist-records-info"></span>
                 </div>
-                <div id="history-empty-message" class="text-center text-muted py-3 d-none">
-                    <i class="fas fa-receipt fa-2x mb-2 opacity-50"></i>
-                    <p>No hay transacciones que coincidan con los filtros.</p>
+
+                <!-- Content area: mobile list + desktop table rendered here -->
+                <div id="hist-content-area">
+                    <div class="hist-loading">
+                        <div class="spinner-border spinner-border-sm text-secondary"></div>
+                        <span>Cargando transacciones…</span>
+                    </div>
                 </div>
+
+                <!-- Pagination -->
+                <div id="history-pagination" class="hist-pagination"></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+
+            <div class="modal-footer" style="padding:12px 20px;border-top:1px solid #e8e8e8;background:#fff;">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -639,7 +1033,7 @@ let _activeCardIdx = 0;
 // Historial
 let _historyTransactions = [];
 let _historyPage         = 1;
-const HISTORY_PAGE_SIZE  = 10;
+const HISTORY_PAGE_SIZE  = 5;
 
 /* ============================================
    HELPERS
@@ -724,7 +1118,13 @@ function buildCardInnerHTML(card) {
 
     return `
         ${alertHtml}
-        <span class="card-type-badge ${typeBadge}">${typeLabel}</span>
+        <!-- Card header row: badge + edit button -->
+        <div class="card-header-row">
+            <span class="card-type-badge ${typeBadge}">${typeLabel}</span>
+            <button class="card-edit-btn" onclick="openEditModal(${card.id})" title="Editar tarjeta">
+                <i class="fas fa-pencil-alt"></i>
+            </button>
+        </div>
         <div class="card-name">${escapeHtml(card.name)}</div>
         <div class="balances-row">
             <div class="balance-box">
@@ -823,7 +1223,6 @@ function renderMobileSlider(cards) {
     _activeCardIdx = 0;
     renderMobileDetailPanel(cards[0]);
 
-    // Scroll → actualizar dots y panel
     slider.addEventListener('scroll', () => {
         const slideW = slider.firstElementChild ? slider.firstElementChild.offsetWidth + 12 : 1;
         const idx    = Math.round(slider.scrollLeft / slideW);
@@ -886,7 +1285,6 @@ function renderMobileDetailPanel(card) {
     if (!limHtml) limHtml = `<div class="detail-row"><span class="dl">Sin límites definidos</span></div>`;
     document.getElementById('tab-limits').innerHTML = limHtml;
 
-    // Cargar últimos 5 movimientos
     document.getElementById('tab-history').innerHTML =
         `<div class="detail-row"><div class="spinner-border spinner-border-sm text-primary me-2"></div> Cargando...</div>`;
 
@@ -985,13 +1383,50 @@ document.getElementById('btn-create-card').addEventListener('click', function ()
 });
 
 /* ============================================
+   EDITAR TARJETA  ← NEW
+   ============================================ */
+function openEditModal(cardId) {
+    const card = _allCards.find(c => c.id == cardId);
+    if (!card) { showError('No se encontró la tarjeta.'); return; }
+
+    document.getElementById('edit-card-id').value         = card.id;
+    document.getElementById('edit-card-name').value       = card.name;
+    document.getElementById('edit-card-type').value       = card.type;
+    document.getElementById('edit-card-limit-usd').value  = card.credit_limit_usd || '';
+    document.getElementById('edit-card-limit-dop').value  = card.credit_limit_dop || '';
+
+    new bootstrap.Modal(document.getElementById('editCardModal')).show();
+}
+
+document.getElementById('btn-save-edit-card').addEventListener('click', function () {
+    const cardId   = document.getElementById('edit-card-id').value;
+    const name     = document.getElementById('edit-card-name').value.trim();
+    const type     = document.getElementById('edit-card-type').value;
+    const limitUsd = document.getElementById('edit-card-limit-usd').value;
+    const limitDop = document.getElementById('edit-card-limit-dop').value;
+
+    if (!name) { showError('El nombre de la tarjeta es obligatorio.'); return; }
+
+    setLoading('btn-save-edit-card','btn-edit-card-text','btn-edit-card-spinner',true);
+    ajaxPost({ action:'edit_card', card_id:cardId, name, type, credit_limit_usd:limitUsd, credit_limit_dop:limitDop })
+        .then(data => {
+            if (!data.success) { showError(data.message, data.full_message); return; }
+            showSuccess(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('editCardModal')).hide();
+            loadCards();
+        })
+        .catch(err => showError('Error de red al guardar los cambios.', err.message))
+        .finally(() => setLoading('btn-save-edit-card','btn-edit-card-text','btn-edit-card-spinner',false));
+});
+
+/* ============================================
    MODAL GASTO
    ============================================ */
 function openExpenseModal(cardId) {
     document.getElementById('expense-card-id').value     = cardId;
     document.getElementById('expense-amount').value      = '';
     document.getElementById('expense-description').value = '';
-    document.getElementById('expense-date').value        = localDateStr();
+    document.getElementById('expense-date').value        = localDateStr();  // ← auto fecha
     const sel = document.getElementById('expense-category');
     sel.innerHTML = '<option value="">Seleccionar categoría</option>' +
         _categories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
@@ -1024,7 +1459,7 @@ document.getElementById('btn-add-expense').addEventListener('click', function ()
    ============================================ */
 function openPayModal(cardId) {
     document.getElementById('pay-card-id').value = cardId;
-    document.getElementById('pay-date').value     = localDateStr();
+    document.getElementById('pay-date').value     = localDateStr();  // ← auto fecha
     document.getElementById('pay-dop').value      = '0';
     document.getElementById('pay-usd').value      = '0';
     document.getElementById('dop-for-usd').value  = '0';
@@ -1117,29 +1552,73 @@ function confirmDelete(cardId, cardName) {
 }
 
 /* ============================================
-   HISTORIAL COMPLETO (modal)
+   HISTORIAL COMPLETO — REDESIGNED
    ============================================ */
+
+/* --- Filter toggle --- */
+document.getElementById('histFilterToggleBtn').addEventListener('click', function () {
+    const panel   = document.getElementById('histFiltersPanel');
+    const chevron = document.getElementById('histFilterChevron');
+    const open    = panel.style.display !== 'none';
+    panel.style.display = open ? 'none' : 'block';
+    chevron.classList.toggle('open', !open);
+});
+
+/* --- Apply / clear filters --- */
+document.getElementById('btn-apply-filters').addEventListener('click', function () {
+    const cardId = document.getElementById('history-card-id').value;
+    if (cardId) {
+        updateHistFilterBadge();
+        loadCardTransactions(cardId);
+    }
+});
+document.getElementById('btn-clear-filters').addEventListener('click', function () {
+    document.getElementById('filter-date-from').value = '';
+    document.getElementById('filter-date-to').value   = '';
+    document.getElementById('filter-type').value       = '';
+    document.getElementById('hist-filters-badge').classList.add('d-none');
+    const cardId = document.getElementById('history-card-id').value;
+    if (cardId) loadCardTransactions(cardId);
+});
+
+function updateHistFilterBadge() {
+    const hasFilters =
+        document.getElementById('filter-date-from').value ||
+        document.getElementById('filter-date-to').value   ||
+        document.getElementById('filter-type').value;
+    document.getElementById('hist-filters-badge').classList.toggle('d-none', !hasFilters);
+}
+
+/* --- Open modal --- */
 function openHistoryModal(cardId, cardName) {
     document.getElementById('history-card-id').value         = cardId;
     document.getElementById('history-card-name').textContent = cardName;
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value   = '';
     document.getElementById('filter-type').value       = '';
+    document.getElementById('hist-filters-badge').classList.add('d-none');
     document.getElementById('history-pagination').innerHTML = '';
+    // Collapse filters on open
+    document.getElementById('histFiltersPanel').style.display = 'none';
+    document.getElementById('histFilterChevron').classList.remove('open');
     _historyTransactions = [];
     _historyPage = 1;
     new bootstrap.Modal(document.getElementById('transactionsHistoryModal')).show();
     loadCardTransactions(cardId);
 }
 
+/* --- Load transactions from server --- */
 function loadCardTransactions(cardId, resetPage = true) {
     if (resetPage) _historyPage = 1;
-    const tbody = document.getElementById('history-table-body');
-    const emptyMsg = document.getElementById('history-empty-message');
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-3">
-        <div class="spinner-border spinner-border-sm text-primary"></div> Cargando...</td></tr>`;
-    emptyMsg.classList.add('d-none');
-    document.getElementById('history-pagination').innerHTML = '';
+    const area    = document.getElementById('hist-content-area');
+    const pagDiv  = document.getElementById('history-pagination');
+    const recInfo = document.getElementById('hist-records-info');
+    area.innerHTML = `<div class="hist-loading">
+        <div class="spinner-border spinner-border-sm text-secondary"></div>
+        <span>Cargando transacciones…</span>
+    </div>`;
+    pagDiv.innerHTML  = '';
+    recInfo.textContent = '';
 
     ajaxPost({
         action:'get_card_transactions', card_id:cardId,
@@ -1149,97 +1628,186 @@ function loadCardTransactions(cardId, resetPage = true) {
     }).then(data => {
         if (!data.success) {
             showError(data.message, data.full_message);
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-3">Error al cargar.</td></tr>`;
+            area.innerHTML = `<div class="hist-empty"><span class="hist-empty-icon">⚠️</span>Error al cargar.</div>`;
             return;
         }
         _historyTransactions = data.transactions || [];
         renderHistoryPage();
     }).catch(err => {
         showError('Error de conexión', err.message);
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-3">Error de red.</td></tr>`;
+        area.innerHTML = `<div class="hist-empty"><span class="hist-empty-icon">⚠️</span>Error de red.</div>`;
     });
 }
 
+/* --- SVG icons for history list --- */
+function histIcon(type) {
+    if (type === 'expense') {
+        return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7-7 7 7"/></svg>`;
+    }
+    return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7 7 7-7"/></svg>`;
+}
+
+/* --- Delete button for history --- */
+function histDeleteBtn(t, mode) {
+    const today   = new Date(); today.setHours(0,0,0,0);
+    const txDate  = new Date(t.date+'T00:00:00');
+    const diffDays = Math.round((today - txDate) / 86400000);
+    const canDel   = diffDays >= -1 && diffDays <= 3;
+    const cardId   = document.getElementById('history-card-id').value;
+
+    if (!canDel) {
+        const lockSvg = `<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11 7V5a3 3 0 0 0-6 0v2H3v8h10V7h-2zm-4-2a1 1 0 0 1 2 0v2H7V5z"/></svg>`;
+        return mode === 'desktop'
+            ? `<button class="btn-locked-hist" title="Solo eliminable los primeros 3 días" disabled>${lockSvg}</button>`
+            : `<button class="btn-locked-hist" title="Solo eliminable los primeros 3 días" disabled style="width:28px;height:28px;font-size:11px;">${lockSvg}</button>`;
+    }
+    const trashSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+    return mode === 'desktop'
+        ? `<button class="btn-del-hist" onclick="confirmDeleteTransaction(${t.id},${cardId})" title="Eliminar y revertir">${trashSvg}</button>`
+        : `<button class="btn-del-hist" onclick="confirmDeleteTransaction(${t.id},${cardId})" title="Eliminar y revertir" style="width:28px;height:28px;">${trashSvg}</button>`;
+}
+
+/* --- Render mobile list for history --- */
+function renderHistMobile(transactions) {
+    if (!transactions.length) return '';
+    return `<div class="hist-mobile-list">` +
+        transactions.map(t => {
+            const isExp  = t.row_type === 'expense';
+            const dotCls = isExp ? 'hdot-exp' : 'hdot-pay';
+            const amtCls = isExp ? 'hamt-exp' : 'hamt-pay';
+            const signo  = isExp ? '+' : '-';
+            const badgeCls = isExp ? 'hbadge-exp' : 'hbadge-pay';
+            const badgeLbl = isExp ? 'Gasto' : 'Pago';
+            const fecha    = new Date(t.date+'T00:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'2-digit',year:'numeric'});
+            const desc     = escapeHtml(t.description || (isExp ? 'Gasto' : 'Pago de tarjeta'));
+            const cat      = t.category_name ? escapeHtml(t.category_name) : (isExp ? 'Sin categoría' : 'Pago');
+            const sym      = escapeHtml(t.currency_symbol || '');
+            return `
+            <div class="hist-item">
+                <div class="hist-item-inner">
+                    <div class="hist-dot-icon ${dotCls}">${histIcon(t.row_type)}</div>
+                    <div class="hist-main">
+                        <div class="hist-desc">${desc}</div>
+                        <div class="hist-cat">${cat} &middot; <span class="hist-date">${fecha}</span></div>
+                    </div>
+                    <div class="hist-amount-col">
+                        <div class="hist-amt-main ${amtCls}">${signo} ${sym}${fmt(t.amount)}</div>
+                        <div style="text-align:right;margin-top:3px;">
+                            <span class="hist-type-badge ${badgeCls}">${badgeLbl}</span>
+                        </div>
+                    </div>
+                    <div style="margin-left:8px;flex-shrink:0;">${histDeleteBtn(t, 'mobile')}</div>
+                </div>
+            </div>`;
+        }).join('') + `</div>`;
+}
+
+/* --- Render desktop table for history --- */
+function renderHistDesktop(transactions) {
+    if (!transactions.length) return '';
+    const rows = transactions.map(t => {
+        const isExp    = t.row_type === 'expense';
+        const badgeCls = isExp ? 'hbadge-exp' : 'hbadge-pay';
+        const badgeLbl = isExp ? 'Gasto' : 'Pago';
+        const amtCls   = isExp ? 'hamt-exp' : 'hamt-pay';
+        const signo    = isExp ? '+' : '-';
+        const fecha    = new Date(t.date+'T00:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'});
+        const desc     = escapeHtml(t.description || (isExp ? '—' : 'Pago de tarjeta'));
+        const cat      = t.category_name ? escapeHtml(t.category_name) : '—';
+        const sym      = escapeHtml(t.currency_symbol || '');
+        const balAfter = parseFloat(t.balance_after||0).toLocaleString('es-DO',{minimumFractionDigits:2});
+        return `<tr>
+            <td style="white-space:nowrap;color:#9ca3af;font-size:12px;">${fecha}</td>
+            <td class="hist-tbl-desc">${desc}</td>
+            <td style="font-size:12px;color:#374151;">${cat}</td>
+            <td><span class="hist-tbl-badge ${badgeCls}">${badgeLbl}</span></td>
+            <td class="hist-tbl-amt ${amtCls}">${signo} ${sym} ${fmt(t.amount)}</td>
+            <td class="hist-tbl-muted" style="white-space:nowrap;">${sym} ${balAfter}</td>
+            <td>${histDeleteBtn(t, 'desktop')}</td>
+        </tr>`;
+    }).join('');
+
+    return `<div class="hist-desktop-wrap">
+        <div class="hist-desktop-card">
+            <div style="overflow-x:auto;">
+                <table class="hist-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Categoría</th>
+                            <th>Tipo</th>
+                            <th>Monto</th>
+                            <th>Balance</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        </div>
+    </div>`;
+}
+
+/* --- Main render page function --- */
 function renderHistoryPage() {
-    const tbody      = document.getElementById('history-table-body');
-    const emptyMsg   = document.getElementById('history-empty-message');
-    const pagination = document.getElementById('history-pagination');
-    const cardId     = document.getElementById('history-card-id').value;
+    const area    = document.getElementById('hist-content-area');
+    const pagDiv  = document.getElementById('history-pagination');
+    const recInfo = document.getElementById('hist-records-info');
 
     if (_historyTransactions.length === 0) {
-        tbody.innerHTML = '';
-        emptyMsg.classList.remove('d-none');
-        pagination.innerHTML = '';
+        area.innerHTML = `<div class="hist-empty">
+            <span class="hist-empty-icon">📭</span>
+            No hay transacciones que coincidan con los filtros.
+        </div>`;
+        pagDiv.innerHTML    = '';
+        recInfo.textContent = 'Sin resultados';
         return;
     }
-    emptyMsg.classList.add('d-none');
 
     const totalPages = Math.ceil(_historyTransactions.length / HISTORY_PAGE_SIZE);
-    const start      = (_historyPage-1) * HISTORY_PAGE_SIZE;
+    const start      = (_historyPage - 1) * HISTORY_PAGE_SIZE;
     const end        = Math.min(start + HISTORY_PAGE_SIZE, _historyTransactions.length);
-    const today      = new Date(); today.setHours(0,0,0,0);
+    const pageTx     = _historyTransactions.slice(start, end);
 
-    let html = '';
-    _historyTransactions.slice(start,end).forEach(t => {
-        const fecha      = new Date(t.date+'T00:00:00').toLocaleDateString('es-DO',{year:'numeric',month:'short',day:'numeric'});
-        const desc       = escapeHtml(t.description||(t.row_type==='payment'?'Pago de tarjeta':'Gasto'));
-        const categoria  = t.category_name ? escapeHtml(t.category_name) : '—';
-        const tipoBadge  = t.row_type==='expense'
-            ? '<span class="badge bg-danger">Gasto</span>'
-            : '<span class="badge bg-success">Pago</span>';
-        const signo      = t.row_type==='expense' ? '+' : '-';
-        const montoClass = t.row_type==='expense' ? 'text-danger fw-semibold' : 'text-success fw-semibold';
-        const monto      = parseFloat(t.amount).toLocaleString('es-DO',{minimumFractionDigits:2});
-        const balAfter   = parseFloat(t.balance_after||0).toLocaleString('es-DO',{minimumFractionDigits:2});
-        const symbol     = t.currency_symbol||'';
-        const txDate     = new Date(t.date+'T00:00:00');
-        const diffDays   = Math.round((today-txDate)/86400000);
-        const canDel     = diffDays>=-1 && diffDays<=3;
-        const deleteBtn  = canDel
-            ? `<button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:.75rem;"
-                   title="Eliminar y revertir" onclick="confirmDeleteTransaction(${t.id},${cardId})">
-                   <i class="fas fa-trash-alt"></i></button>`
-            : `<span class="text-muted" title="Solo eliminable los primeros 3 días"><i class="fas fa-lock" style="font-size:.75rem;"></i></span>`;
-        html += `<tr>
-            <td class="text-nowrap">${fecha}</td>
-            <td>${desc}</td>
-            <td>${categoria}</td>
-            <td>${tipoBadge}</td>
-            <td class="text-end ${montoClass}">${signo} ${symbol} ${monto}</td>
-            <td class="text-end text-muted">${symbol} ${balAfter}</td>
-            <td class="text-center">${deleteBtn}</td>
-        </tr>`;
-    });
-    tbody.innerHTML = html;
+    // Render both views
+    area.innerHTML = renderHistMobile(pageTx) + renderHistDesktop(pageTx);
 
+    // Records info
+    recInfo.textContent = `Mostrando ${start+1}–${end} de ${_historyTransactions.length} transacción(es)`;
+
+    // Pagination
     if (totalPages <= 1) {
-        pagination.innerHTML = `<p class="text-center text-muted mb-0" style="font-size:.8rem;">
-            Mostrando ${_historyTransactions.length} transacción(es)</p>`;
+        pagDiv.innerHTML = '';
         return;
     }
-    let pHtml = `<div class="d-flex flex-column align-items-center gap-1">
-        <ul class="pagination pagination-sm mb-0 flex-wrap justify-content-center">`;
-    pHtml += `<li class="page-item ${_historyPage===1?'disabled':''}">
-        <button class="page-link" onclick="changeHistoryPage(${_historyPage-1})"><i class="fas fa-chevron-left"></i></button></li>`;
-    for (let i=1; i<=totalPages; i++) {
-        const near=Math.abs(i-_historyPage)<=1, edge=i===1||i===totalPages;
-        if (!near&&!edge) { if(i===2||i===totalPages-1) pHtml+=`<li class="page-item disabled"><span class="page-link">…</span></li>`; continue; }
-        pHtml+=`<li class="page-item ${i===_historyPage?'active':''}"><button class="page-link" onclick="changeHistoryPage(${i})">${i}</button></li>`;
+
+    const prev = _historyPage - 1;
+    const next = _historyPage + 1;
+    let pHtml  = '';
+
+    pHtml += `<button class="hpag-btn ${_historyPage<=1?'disabled':''}" onclick="changeHistoryPage(1)">«</button>`;
+    pHtml += `<button class="hpag-btn ${_historyPage<=1?'disabled':''}" onclick="changeHistoryPage(${prev})">‹</button>`;
+
+    const st = Math.max(1, _historyPage - 2);
+    const en = Math.min(totalPages, _historyPage + 2);
+    if (st > 1) pHtml += `<button class="hpag-btn disabled">…</button>`;
+    for (let i = st; i <= en; i++) {
+        pHtml += `<button class="hpag-btn ${i===_historyPage?'active':''}" onclick="changeHistoryPage(${i})">${i}</button>`;
     }
-    pHtml+=`<li class="page-item ${_historyPage===totalPages?'disabled':''}">
-        <button class="page-link" onclick="changeHistoryPage(${_historyPage+1})"><i class="fas fa-chevron-right"></i></button></li>`;
-    pHtml+=`</ul><small class="text-muted">Mostrando ${start+1}–${end} de ${_historyTransactions.length}</small></div>`;
-    pagination.innerHTML = pHtml;
+    if (en < totalPages) pHtml += `<button class="hpag-btn disabled">…</button>`;
+    pHtml += `<button class="hpag-btn ${_historyPage>=totalPages?'disabled':''}" onclick="changeHistoryPage(${next})">›</button>`;
+    pHtml += `<button class="hpag-btn ${_historyPage>=totalPages?'disabled':''}" onclick="changeHistoryPage(${totalPages})">»</button>`;
+
+    pagDiv.innerHTML = pHtml;
 }
 
 function changeHistoryPage(page) {
     const totalPages = Math.ceil(_historyTransactions.length / HISTORY_PAGE_SIZE);
-    if (page<1||page>totalPages) return;
+    if (page < 1 || page > totalPages) return;
     _historyPage = page;
     renderHistoryPage();
-    document.getElementById('history-table-body')
-        .closest('.table-responsive')
-        .scrollIntoView({behavior:'smooth',block:'nearest'});
+    document.getElementById('hist-content-area').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 function confirmDeleteTransaction(txId, cardId) {
@@ -1254,20 +1822,15 @@ function confirmDeleteTransaction(txId, cardId) {
             .then(data => {
                 if (!data.success) { showError(data.message, data.full_message); return; }
                 showSuccess(data.message);
-                _historyTransactions = _historyTransactions.filter(t=>t.id!=txId);
-                const totalPages = Math.ceil(_historyTransactions.length/HISTORY_PAGE_SIZE);
-                if (_historyPage>totalPages && totalPages>0) _historyPage=totalPages;
+                _historyTransactions = _historyTransactions.filter(t => t.id != txId);
+                const totalPages = Math.ceil(_historyTransactions.length / HISTORY_PAGE_SIZE);
+                if (_historyPage > totalPages && totalPages > 0) _historyPage = totalPages;
                 renderHistoryPage();
                 loadCards();
             })
             .catch(err => showError('Error de red al eliminar.', err.message));
     });
 }
-
-document.getElementById('btn-apply-filters').addEventListener('click', function () {
-    const cardId = document.getElementById('history-card-id').value;
-    if (cardId) loadCardTransactions(cardId);
-});
 
 /* ============================================
    INICIO

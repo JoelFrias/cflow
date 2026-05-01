@@ -117,6 +117,35 @@ try {
             break;
 
         // ============================================
+        // EDITAR TARJETA  ← NEW
+        // ============================================
+        case 'edit_card':
+            $card_id          = (int) ($_POST['card_id'] ?? 0);
+            $name             = trim($_POST['name'] ?? '');
+            $type             = trim($_POST['type'] ?? '');
+            $credit_limit_usd = !empty($_POST['credit_limit_usd']) ? (float) $_POST['credit_limit_usd'] : null;
+            $credit_limit_dop = !empty($_POST['credit_limit_dop']) ? (float) $_POST['credit_limit_dop'] : null;
+
+            if ($card_id <= 0)  throw new Exception('ID de tarjeta inválido.');
+            if (empty($name))   throw new Exception('El nombre de la tarjeta es obligatorio.');
+            if (!in_array($type, ['debit_card', 'credit_card'])) throw new Exception('Tipo de tarjeta inválido.');
+
+            // Verificar propiedad antes de modificar
+            $chk = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND user_id = ? AND type IN ('debit_card','credit_card')");
+            $chk->execute([$card_id, $user_id]);
+            if (!$chk->fetch()) throw new Exception('Tarjeta no encontrada o sin permiso.');
+
+            $stmt = $pdo->prepare("
+                UPDATE accounts
+                SET name = ?, type = ?, credit_limit_usd = ?, credit_limit_dop = ?
+                WHERE id = ? AND user_id = ?
+            ");
+            $stmt->execute([$name, $type, $credit_limit_usd, $credit_limit_dop, $card_id, $user_id]);
+
+            echo json_encode(['success' => true, 'message' => 'Tarjeta actualizada correctamente.']);
+            break;
+
+        // ============================================
         // REGISTRAR GASTO EN TARJETA
         // ============================================
         case 'add_card_expense':
@@ -356,21 +385,20 @@ try {
             $params_expenses = array_merge([$user_id, $card_id], $date_params);
 
             // Pagos a la tarjeta vinculados por transfer_to_account = card_id
-            // (correcto gracias al fix en pay_card)
             $sql_payments = "
                 SELECT
                     t.id,
                     t.date,
                     t.description,
                     t.amount,
-                    'DOP'   AS currency,
-                    t.amount AS converted_amount_dop,
+                    'DOP'     AS currency,
+                    t.amount  AS converted_amount_dop,
                     'payment' AS row_type,
-                    NULL    AS category_name
+                    NULL      AS category_name
                 FROM transactions t
-                WHERE t.user_id            = ?
+                WHERE t.user_id             = ?
                   AND t.transfer_to_account = ?
-                  AND t.type               = 'expense'
+                  AND t.type                = 'expense'
                 {$date_where}
             ";
             $params_payments = array_merge([$user_id, $card_id], $date_params);
@@ -469,7 +497,7 @@ try {
                 }
 
                 // Determinar si es gasto directo o pago a tarjeta
-                $pay_usd = (float)($tx['payment_usd_amount'] ?? 0);
+                $pay_usd     = (float)($tx['payment_usd_amount'] ?? 0);
                 $pay_dop_col = (float)($tx['payment_dop_amount'] ?? 0);
 
                 $is_expense = ((int)$tx['account_id'] === $card_id && $pay_usd == 0 && $pay_dop_col == 0);

@@ -526,6 +526,13 @@ if (empty($base_path)) $base_path = '';
             0%, 70%, 100% { transform: translateY(0);     opacity: 0.35; }
             35%            { transform: translateY(-13px); opacity: 1;    }
         }
+
+        /* ── Evitar zoom automático en iOS al enfocar inputs ── */
+        @media (max-width: 991px) {
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+        }
     </style>
 </head>
 <body>

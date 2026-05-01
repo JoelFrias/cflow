@@ -98,6 +98,13 @@ if (isLoggedIn()) {
                 min-height: 100vh;
             }
         }
+        
+        /* ── Evitar zoom automático en iOS al enfocar inputs ── */
+        @media (max-width: 991px) {
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+        }
     </style>
 </head>
 <body class="auth-body">
