@@ -680,7 +680,7 @@ const DebtModule = (() => {
 
         const actionBtns = isPaid
             ? `<button class="db-action-btn" onclick="DebtModule.showHistory(${debt.id}, '${dbEscJs(debt.creditor)}')">≡ Historial</button>`
-            : `<button class="db-action-btn pay" onclick="DebtModule.showPayModal(${debt.id}, '${dbEscJs(debt.creditor)}', ${debt.pending})">💸 Pagar</button>
+            : `<button class="db-action-btn pay" onclick="DebtModule.showPayModal(${debt.id}, '${dbEscJs(debt.creditor)}', ${debt.pending})">Pagar</button>
                <button class="db-action-btn" onclick="DebtModule.showHistory(${debt.id}, '${dbEscJs(debt.creditor)}')">≡ Historial</button>
                <button class="db-action-btn del" onclick="DebtModule.confirmDelete(${debt.id}, '${dbEscJs(debt.creditor)}')">✕</button>`;
 
@@ -690,7 +690,7 @@ const DebtModule = (() => {
                 <div class="db-card-info">
                     <div class="db-card-name">${dbEsc(debt.creditor)}</div>
                     <div class="db-card-meta">
-                        <span>📅 ${dueFmt}</span>
+                        <span>${dueFmt}</span>
                         ${interestNote}
                         ${pillHtml}
                     </div>

@@ -676,7 +676,7 @@ function renderGoalCard(goal) {
             <div class="gl-card-info">
                 <div class="gl-card-name">${glEsc(goal.name)}</div>
                 <div class="gl-card-deadline">
-                    <span>📅 ${deadlineFmt}</span>
+                    <span>${deadlineFmt}</span>
                     ${pillHtml}
                 </div>
             </div>

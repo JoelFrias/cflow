@@ -262,6 +262,113 @@ $ajax_category_url = 'ajax/create_category.php';
 </div>
 
 <!-- ============================================ -->
+<!-- MODAL: EDITAR TRANSACCIÓN                    -->
+<!-- ============================================ -->
+<div class="modal fade" id="editTransactionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content tx-modal-content">
+            <div class="modal-header tx-modal-header">
+                <h5 class="modal-title" style="font-size:16px;font-weight:500">
+                    Editar Transacción
+                    <span id="edit-tx-id-badge" style="font-size:12px;color:#9ca3af;font-weight:400;margin-left:6px"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:20px 24px">
+                <input type="hidden" id="edit-transaction-id">
+
+                <!-- Tipo -->
+                <div class="mb-3">
+                    <label class="form-label tx-form-label">Tipo</label>
+                    <div class="tx-type-row" id="edit-type-row">
+                        <label class="tx-type-card income-card" id="edit-labelIncome">
+                            <input type="radio" name="edit-type" value="income" class="d-none" id="edit-typeIncome">
+                            <span class="tx-type-icon tx-icon-inc">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="9"/>
+                                    <path d="M12 8v8M8.5 14.5l3.5 3.5 3.5-3.5"/>
+                                </svg>
+                            </span>
+                            <span class="tx-type-text text-success">Ingreso</span>
+                        </label>
+                        <label class="tx-type-card expense-card" id="edit-labelExpense">
+                            <input type="radio" name="edit-type" value="expense" class="d-none" id="edit-typeExpense">
+                            <span class="tx-type-icon tx-icon-exp">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="9"/>
+                                    <path d="M12 16V8M8.5 11.5l3.5-3.5 3.5 3.5"/>
+                                </svg>
+                            </span>
+                            <span class="tx-type-text text-danger">Gasto</span>
+                        </label>
+                        <label class="tx-type-card transfer-card" id="edit-labelTransfer">
+                            <input type="radio" name="edit-type" value="transfer" class="d-none" id="edit-typeTransfer">
+                            <span class="tx-type-icon tx-icon-trf">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M5 8h14M15 4l4 4-4 4"/>
+                                    <path d="M19 16H5M9 12l-4 4 4 4"/>
+                                </svg>
+                            </span>
+                            <span class="tx-type-text text-primary">Transferencia</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Cuenta origen -->
+                <div class="mb-3">
+                    <label class="form-label tx-form-label" id="edit-labelAccountOrigin">Cuenta</label>
+                    <div class="account-cards-grid" id="edit-account-cards-origin"></div>
+                    <input type="hidden" id="edit-modal-account-id">
+                </div>
+
+                <!-- Cuenta destino (solo transferencia) -->
+                <div class="mb-3 d-none" id="edit-transferToDiv">
+                    <label class="form-label tx-form-label">Cuenta destino</label>
+                    <div class="account-cards-grid" id="edit-account-cards-dest"></div>
+                    <input type="hidden" id="edit-modal-transfer-to">
+                </div>
+
+                <!-- Categoría -->
+                <div class="mb-3" id="edit-categoryDiv">
+                    <label class="form-label tx-form-label">Categoría</label>
+                    <select id="edit-modal-category-id" class="form-control tx-form-control">
+                        <option value="">Seleccionar categoría</option>
+                    </select>
+                </div>
+
+                <!-- Monto -->
+                <div class="mb-3">
+                    <label class="form-label tx-form-label">Monto</label>
+                    <input type="number" step="0.01" id="edit-modal-amount" class="form-control tx-form-control" placeholder="0.00">
+                </div>
+
+                <!-- Fecha -->
+                <div class="mb-3">
+                    <label class="form-label tx-form-label">Fecha</label>
+                    <input type="date" id="edit-modal-date" class="form-control tx-form-control">
+                </div>
+
+                <!-- Descripción -->
+                <div class="mb-1">
+                    <label class="form-label tx-form-label">
+                        Descripción <span style="font-weight:400;color:#aaa">(opcional)</span>
+                    </label>
+                    <textarea id="edit-modal-description" class="form-control tx-form-control" rows="2"
+                              placeholder="Ej: Compra en supermercado…"></textarea>
+                </div>
+
+            </div>
+            <div class="modal-footer" style="padding:14px 24px;border-top:1px solid #f0f0f0">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn-save-tx" onclick="TransactionModule.updateTransaction()">
+                    Guardar cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================ -->
 <!-- ESTILOS                                      -->
 <!-- ============================================ -->
 <style>
@@ -1027,6 +1134,61 @@ $ajax_category_url = 'ajax/create_category.php';
     .account-cards-grid { gap: 9px; }
     .account-card-item  { flex: 0 0 160px; }
 }
+
+/* ── Botón editar (móvil) ── */
+.btn-edit-row {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #3b82f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s;
+}
+.btn-edit-row:hover { background: #dbeafe; }
+
+/* ── Botón editar (desktop) ── */
+.tx-table .btn-edit-table {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #3b82f6;
+    cursor: pointer;
+    transition: background .15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.tx-table .btn-edit-table:hover { background: #dbeafe; }
+
+/* ── Grupo de botones de acción ── */
+.tx-btn-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+/* ── Badge de "editable" en el panel extra móvil ── */
+.tx-edit-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 20px;
+    background: #eff6ff;
+    color: #3b82f6;
+    border: 1px solid #bfdbfe;
+    white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 2px;
+}
+
 </style>
 
 <!-- ============================================ -->
@@ -1048,6 +1210,7 @@ const TransactionModule = (() => {
     let _accounts    = [];
     let _incomeCats  = [];
     let _expenseCats = [];
+    let _transactions = [];
 
     // ─── Utilidades ───────────────────────────────
 
@@ -1103,6 +1266,17 @@ const TransactionModule = (() => {
         return (today - txDate) / 86400000 > 3;
     }
 
+    function isEditableByAge(t) {
+        if (isCardAccount(t.account_type)) return false;
+        if (t.created_at) {
+            const ts = new Date(t.created_at.replace(' ', 'T'));
+            return (Date.now() - ts.getTime()) <= 86400000;
+        }
+        // Fallback (sin columna created_at): solo permite el día actual
+        const today = new Date().toISOString().split('T')[0];
+        return t.date === today;
+    }
+
     function isCardAccount(accountType) {
         return accountType === 'debit_card' || accountType === 'credit_card';
     }
@@ -1120,22 +1294,33 @@ const TransactionModule = (() => {
     function getActionBtn(t, mode) {
         const isDesktop = mode === 'desktop';
 
+        // ── Tarjeta: solo botón info ──
         if (isCardAccount(t.account_type)) {
-            return isDesktop
-                ? `<button class="btn-card-info-table" onclick="TransactionModule.showCardInfo()" title="Transacción de tarjeta — gestionar desde módulo de tarjetas">?</button>`
+            const btn = isDesktop
+                ? `<button class="btn-card-info-table" onclick="TransactionModule.showCardInfo()" title="Gestionar desde módulo de tarjetas">?</button>`
                 : `<button class="btn-card-info-row"   onclick="TransactionModule.showCardInfo()" title="Transacción de tarjeta">?</button>`;
+            return `<div class="tx-btn-group">${btn}</div>`;
         }
 
-        if (isOlderThan3Days(t.date)) {
-            const lockIcon = `<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M11 7V5a3 3 0 0 0-6 0v2H3v8h10V7h-2zm-4-2a1 1 0 0 1 2 0v2H7V5z"/></svg>`;
-            return isDesktop
-                ? `<button class="btn-locked-table" title="No eliminable: más de 3 días de antigüedad" disabled>${lockIcon}</button>`
-                : `<button class="btn-locked-row"   title="No eliminable: más de 3 días de antigüedad" disabled>${lockIcon}</button>`;
-        }
+        // ── Botón editar (solo si < 24 h) ──
+        const pencilIcon = `<svg width="${isDesktop ? 12 : 13}" height="${isDesktop ? 12 : 13}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+        const editBtn = isEditableByAge(t)
+            ? (isDesktop
+                ? `<button class="btn-edit-table" onclick="TransactionModule.openEditModal(${t.id})" title="Editar transacción">${pencilIcon}</button>`
+                : `<button class="btn-edit-row"   onclick="TransactionModule.openEditModal(${t.id})" title="Editar">${pencilIcon}</button>`)
+            : '';
 
-        return isDesktop
-            ? `<button class="btn-del-table" onclick="TransactionModule.confirmDelete(${t.id})" title="Eliminar transacción">✕</button>`
-            : `<button class="btn-del-row"   onclick="TransactionModule.confirmDelete(${t.id})" title="Eliminar">✕</button>`;
+        // ── Botón eliminar (con límite de 3 días) ──
+        const lockIcon = `<svg width="${isDesktop ? 12 : 13}" height="${isDesktop ? 12 : 13}" viewBox="0 0 16 16" fill="currentColor"><path d="M11 7V5a3 3 0 0 0-6 0v2H3v8h10V7h-2zm-4-2a1 1 0 0 1 2 0v2H7V5z"/></svg>`;
+        const deleteBtn = !isOlderThan3Days(t.date)
+            ? (isDesktop
+                ? `<button class="btn-del-table" onclick="TransactionModule.confirmDelete(${t.id})" title="Eliminar transacción">✕</button>`
+                : `<button class="btn-del-row"   onclick="TransactionModule.confirmDelete(${t.id})" title="Eliminar">✕</button>`)
+            : (isDesktop
+                ? `<button class="btn-locked-table" title="No eliminable: más de 3 días" disabled>${lockIcon}</button>`
+                : `<button class="btn-locked-row"   title="No eliminable: más de 3 días" disabled>${lockIcon}</button>`);
+
+        return `<div class="tx-btn-group">${editBtn}${deleteBtn}</div>`;
     }
 
     // ─── Resumen ──────────────────────────────────
@@ -1354,6 +1539,7 @@ const TransactionModule = (() => {
 
         try {
             const data = await request('get_transactions', _state, 'GET');
+            _transactions = data.transactions;
 
             renderTable(data.transactions);
             renderPagination(data.total_pages, data.page);
@@ -1423,25 +1609,27 @@ const TransactionModule = (() => {
     function selectAccountCard(containerId, hiddenInputId, accountId, isDest = false) {
         const selClass = isDest ? 'selected-dest' : 'selected';
 
-        // Quitar selección previa
         document.querySelectorAll(`#${containerId} .account-card-item`).forEach(c => {
             c.classList.remove('selected', 'selected-dest');
         });
 
-        // Marcar la nueva
         const card = document.querySelector(`#${containerId} [data-id="${accountId}"]`);
         if (card) card.classList.add(selClass);
         document.getElementById(hiddenInputId).value = accountId;
 
-        // Si cambia la cuenta origen en modo transferencia,
-        // refrescar las cards destino excluyendo la nueva origen.
-        if (containerId === 'account-cards-origin') {
-            const type = document.querySelector('input[name="type"]:checked')?.value;
-            if (type === 'transfer') {
-                const currentDest = document.getElementById('modal-transfer-to').value || null;
-                // Si el destino actual es igual a la nueva origen, limpiarlo
-                const newDest = (currentDest && parseInt(currentDest) === parseInt(accountId)) ? null : currentDest;
-                renderAccountCards('account-cards-dest', 'modal-transfer-to', newDest ? parseInt(newDest) : null, accountId, true);
+        // Refrescar destino al cambiar origen (tanto en modal nuevo como en edición)
+        const originContainers = { 'account-cards-origin': false, 'edit-account-cards-origin': true };
+        if (containerId in originContainers) {
+            const isEdit   = originContainers[containerId];
+            const typeInput = isEdit
+                ? document.querySelector('#edit-type-row input[name="edit-type"]:checked')
+                : document.querySelector('input[name="type"]:checked');
+            if (typeInput?.value === 'transfer') {
+                const destContainer = isEdit ? 'edit-account-cards-dest'  : 'account-cards-dest';
+                const destHidden    = isEdit ? 'edit-modal-transfer-to'   : 'modal-transfer-to';
+                const currentDest   = document.getElementById(destHidden).value || null;
+                const newDest       = (currentDest && parseInt(currentDest) === parseInt(accountId)) ? null : currentDest;
+                renderAccountCards(destContainer, destHidden, newDest ? parseInt(newDest) : null, accountId, true);
             }
         }
     }
@@ -1469,6 +1657,92 @@ const TransactionModule = (() => {
         });
 
         if (cats.length > 0) select.value = cats[0].id;
+    }
+
+    // Categorías para el modal de edición
+    function filterEditModalCategories(type, selectedId = null) {
+        const select = document.getElementById('edit-modal-category-id');
+        select.innerHTML = '<option value="">Seleccionar categoría</option>';
+        const cats = type === 'income' ? _incomeCats : _expenseCats;
+        cats.forEach(c => {
+            const opt = new Option(c.name, c.id);
+            if (selectedId !== null && parseInt(c.id) === parseInt(selectedId)) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
+
+    // Abrir modal de edición pre-rellenado
+    function openEditModal(id) {
+        const t = _transactions.find(tx => parseInt(tx.id) === parseInt(id));
+        if (!t) { showError('Datos de transacción no disponibles. Recarga la página.'); return; }
+
+        // ID visible en el título
+        document.getElementById('edit-transaction-id').value     = t.id;
+        document.getElementById('edit-tx-id-badge').textContent  = `#${t.id}`;
+
+        // Seleccionar tipo
+        document.querySelectorAll('#edit-type-row .tx-type-card').forEach(c => c.classList.remove('selected'));
+        const labelMap = { income: 'edit-labelIncome', expense: 'edit-labelExpense', transfer: 'edit-labelTransfer' };
+        document.getElementById(labelMap[t.type])?.classList.add('selected');
+        const radioEdit = document.querySelector(`#edit-type-row input[value="${t.type}"]`);
+        if (radioEdit) radioEdit.checked = true;
+
+        const isTransfer = t.type === 'transfer';
+        document.getElementById('edit-transferToDiv').classList.toggle('d-none', !isTransfer);
+        document.getElementById('edit-categoryDiv').classList.toggle('d-none', isTransfer);
+        document.getElementById('edit-labelAccountOrigin').textContent = isTransfer ? 'Cuenta origen' : 'Cuenta';
+
+        // Cards de cuenta origen
+        renderAccountCards('edit-account-cards-origin', 'edit-modal-account-id', parseInt(t.account_id));
+
+        // Cards destino / categoría
+        if (isTransfer) {
+            renderAccountCards(
+                'edit-account-cards-dest', 'edit-modal-transfer-to',
+                t.transfer_to_account ? parseInt(t.transfer_to_account) : null,
+                parseInt(t.account_id), true
+            );
+            document.getElementById('edit-modal-category-id').value = '1';
+        } else {
+            filterEditModalCategories(t.type, t.category_id ? parseInt(t.category_id) : null);
+        }
+
+        // Monto, fecha, descripción
+        document.getElementById('edit-modal-amount').value      = t.original_amount;
+        document.getElementById('edit-modal-date').value        = t.date;
+        document.getElementById('edit-modal-description').value = t.description || '';
+
+        new bootstrap.Modal(document.getElementById('editTransactionModal')).show();
+    }
+
+    // Enviar edición al servidor
+    async function updateTransaction() {
+        const transaction_id = document.getElementById('edit-transaction-id').value;
+        const type           = document.querySelector('#edit-type-row input[name="edit-type"]:checked')?.value;
+        const account_id     = document.getElementById('edit-modal-account-id').value;
+        const transfer_to    = document.getElementById('edit-modal-transfer-to').value;
+        const category_id    = document.getElementById('edit-modal-category-id').value;
+        const amount         = document.getElementById('edit-modal-amount').value;
+        const date           = document.getElementById('edit-modal-date').value;
+        const description    = document.getElementById('edit-modal-description').value;
+
+        if (!account_id) { showError('Selecciona una cuenta de origen.'); return; }
+        if (type === 'transfer' && !transfer_to) { showError('Selecciona una cuenta destino.'); return; }
+        if (!amount || parseFloat(amount) <= 0)  { showError('El monto debe ser mayor a 0.'); return; }
+
+        try {
+            const data = await request('edit_transaction', {
+                transaction_id, account_id, category_id, type,
+                amount, date, description,
+                transfer_to: transfer_to || '',
+                payment_currency: '',
+            });
+            showSuccess(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('editTransactionModal'))?.hide();
+            await loadTransactions();
+        } catch (err) {
+            showError(err.message, err.fullMessage);
+        }
     }
 
     /**
@@ -1781,17 +2055,43 @@ const TransactionModule = (() => {
         if (hint) hint.style.display = window.innerWidth < 768 ? 'block' : 'none';
     });
 
+    // Selector de tipo en modal de EDICIÓN
+    document.querySelectorAll('#edit-type-row .tx-type-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('#edit-type-row .tx-type-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            card.querySelector('input[type="radio"]').checked = true;
+            const type = card.querySelector('input[type="radio"]').value;
+            const isTransfer = type === 'transfer';
+
+            document.getElementById('edit-transferToDiv').classList.toggle('d-none', !isTransfer);
+            document.getElementById('edit-categoryDiv').classList.toggle('d-none', isTransfer);
+            document.getElementById('edit-labelAccountOrigin').textContent = isTransfer ? 'Cuenta origen' : 'Cuenta';
+
+            if (isTransfer) {
+                document.getElementById('edit-modal-category-id').value = '1';
+                const originId = document.getElementById('edit-modal-account-id').value || null;
+                renderAccountCards('edit-account-cards-dest', 'edit-modal-transfer-to',
+                    null, originId ? parseInt(originId) : null, true);
+            } else {
+                filterEditModalCategories(type);
+            }
+        });
+    });
+
     // ─── Init ─────────────────────────────────────
 
     document.getElementById('modal-date').value = new Date().toISOString().split('T')[0];
     Promise.all([loadFormData(), loadTransactions()]);
 
     return {
-        applyFilters, clearFilters, goToPage,
-        addTransaction, confirmDelete,
-        createQuickCategory, showCardInfo,
-        selectAccountCard,  // expuesto para onclick inline de las cards
-    };
+    applyFilters, clearFilters, goToPage,
+    addTransaction, confirmDelete,
+    createQuickCategory, showCardInfo,
+    selectAccountCard,
+    openEditModal,
+    updateTransaction,
+};
 
 })();
 

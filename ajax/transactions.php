@@ -425,6 +425,192 @@ try {
                 'transaction_id' => $delete_id,
             ]);
             break;
+            
+        // ============================================================
+        // EDITAR TRANSACCIÓN
+        // ============================================================
+        case 'edit_transaction':
+            $transaction_id   = (int)   ($_POST['transaction_id']  ?? 0);
+            $account_id       = (int)   ($_POST['account_id']      ?? 0);
+            $category_id      = !empty($_POST['category_id'])      ? (int)   $_POST['category_id']      : null;
+            $type             = trim(   $_POST['type']             ?? '');
+            $amount           = (float) ($_POST['amount']          ?? 0);
+            $date             = trim(   $_POST['date']             ?? '');
+            $description      = trim(   $_POST['description']      ?? '');
+            $transfer_to      = !empty($_POST['transfer_to'])      ? (int)   $_POST['transfer_to']      : null;
+            $payment_currency = !empty($_POST['payment_currency']) ? trim(   $_POST['payment_currency']) : null;
+
+            // ── Validaciones básicas ──────────────────────────────
+            if ($transaction_id <= 0)                                     throw new Exception('ID de transacción inválido.');
+            if ($account_id <= 0)                                         throw new Exception('Cuenta de origen no válida.');
+            if ($amount <= 0)                                             throw new Exception('El monto debe ser mayor a 0.');
+            if (!in_array($type, VALID_TYPES, true))                      throw new Exception('Tipo de transacción inválido.');
+            if ($date === '' || !validateDate($date))                     throw new Exception('La fecha no es válida (YYYY-MM-DD).');
+            if ($type === 'transfer' && !$transfer_to)                    throw new Exception('Debes indicar la cuenta destino para la transferencia.');
+            if ($type === 'transfer' && $transfer_to === $account_id)     throw new Exception('La cuenta origen y destino no pueden ser la misma.');
+            if (in_array($type, ['expense', 'income'], true) && !$category_id) {
+                throw new Exception('La categoría es obligatoria para ingresos y gastos.');
+            }
+
+            $pdo->beginTransaction();
+
+            // ── Leer y bloquear la transacción original ───────────
+            $origStmt = $pdo->prepare("
+                SELECT t.*, a.type AS account_type
+                FROM transactions t
+                LEFT JOIN accounts a ON t.account_id = a.id
+                WHERE t.id = ? AND t.user_id = ?
+                LIMIT 1 FOR UPDATE
+            ");
+            $origStmt->execute([$transaction_id, $user_id]);
+            $orig = $origStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$orig) throw new Exception('Transacción no encontrada o sin permiso para editarla.');
+
+            // ── Bloquear edición de tarjetas ──────────────────────
+            if (in_array($orig['account_type'], ['debit_card', 'credit_card'], true)) {
+                throw new Exception('Las transacciones de tarjetas deben editarse desde el módulo de tarjetas.');
+            }
+
+            // ── Límite de 24 horas ────────────────────────────────
+            // Requiere columna: created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            // Si no existe, se usa date (precisión de día).
+            $createdAt = $orig['created_at'] ?? ($orig['date'] . ' 00:00:00');
+            $txTime    = new DateTime($createdAt);
+            $now       = new DateTime();
+            if (($now->getTimestamp() - $txTime->getTimestamp()) > 86400) {
+                throw new Exception('No se pueden editar transacciones con más de 24 horas de antigüedad.');
+            }
+
+            // ── Paso 1: bloquear cuentas involucradas ─────────────
+            // Ordenar IDs para evitar deadlocks
+            $lockIds = array_unique(array_filter([
+                $orig['account_id'],
+                $orig['transfer_to_account'] ?: null,
+                $account_id,
+                $transfer_to,
+            ]));
+            sort($lockIds);
+            $placeholders = implode(',', array_fill(0, count($lockIds), '?'));
+            $pdo->prepare("
+                SELECT id FROM accounts
+                WHERE id IN ({$placeholders}) AND user_id = ?
+                FOR UPDATE
+            ")->execute([...$lockIds, $user_id]);
+
+            // ── Paso 2: revertir efectos originales en saldos ─────
+            if ($orig['type'] === 'income') {
+
+                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ? AND user_id = ?")
+                    ->execute([$orig['amount'], $orig['account_id'], $user_id]);
+
+            } elseif ($orig['type'] === 'expense') {
+
+                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                    ->execute([$orig['amount'], $orig['account_id'], $user_id]);
+
+            } elseif ($orig['type'] === 'transfer' && $orig['transfer_to_account']) {
+
+                // Revertir origen
+                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                    ->execute([$orig['amount'], $orig['account_id'], $user_id]);
+
+                // Revertir destino (recalcular con tasas actuales para multidivisa)
+                $origAccInfo  = fetchAccountOrFail($pdo, $orig['account_id'],          $user_id);
+                $origDestInfo = fetchAccountOrFail($pdo, $orig['transfer_to_account'], $user_id);
+
+                $orig_dest_amount = ($origAccInfo['currency_code'] !== $origDestInfo['currency_code'])
+                    ? $orig['amount'] * getExchangeRate($pdo, $origAccInfo['currency_code'], $origDestInfo['currency_code'])
+                    : $orig['amount'];
+
+                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ? AND user_id = ?")
+                    ->execute([$orig_dest_amount, $orig['transfer_to_account'], $user_id]);
+            }
+
+            // ── Paso 3: calcular montos de la nueva transacción ───
+            // Re-leer saldo post-reversión de la cuenta origen
+            $balStmt = $pdo->prepare("SELECT * FROM accounts a JOIN currencies c ON a.currency_code = c.code WHERE a.id = ? AND a.user_id = ? LIMIT 1");
+            $balStmt->execute([$account_id, $user_id]);
+            $account = $balStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$account) throw new Exception('Cuenta de origen no encontrada o sin permiso.');
+
+            $account_currency  = $account['currency_code'];
+            $original_currency = $payment_currency ?: $account_currency;
+
+            if ($payment_currency && $payment_currency !== $account_currency) {
+                $rate             = getExchangeRate($pdo, $payment_currency, $account_currency);
+                $converted_amount = $amount * $rate;
+                $original_amount  = $amount;
+            } else {
+                $converted_amount = $amount;
+                $original_amount  = $amount;
+            }
+
+            // ── Verificar saldo suficiente (con balance ya revertido) ──
+            if (in_array($type, ['expense', 'transfer'], true)) {
+                if ((float) $account['balance'] < $converted_amount) {
+                    throw new Exception('Saldo insuficiente en la cuenta de origen.');
+                }
+            }
+
+            $amount_dop = convertAmount($converted_amount, $account_currency, 'DOP', $pdo);
+
+            // ── Paso 4: actualizar registro de transacción ────────
+            $pdo->prepare("
+                UPDATE transactions SET
+                    account_id           = ?,
+                    category_id          = ?,
+                    type                 = ?,
+                    amount               = ?,
+                    original_amount      = ?,
+                    original_currency    = ?,
+                    converted_amount_dop = ?,
+                    date                 = ?,
+                    description          = ?,
+                    transfer_to_account  = ?
+                WHERE id = ? AND user_id = ?
+            ")->execute([
+                $account_id, $category_id, $type,
+                $converted_amount, $original_amount, $original_currency,
+                $amount_dop, $date, $description,
+                $type === 'transfer' ? $transfer_to : null,
+                $transaction_id, $user_id,
+            ]);
+
+            // ── Paso 5: aplicar nuevos efectos en saldos ──────────
+            if ($type === 'income') {
+
+                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                    ->execute([$converted_amount, $account_id, $user_id]);
+
+            } elseif ($type === 'expense') {
+
+                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ? AND user_id = ?")
+                    ->execute([$converted_amount, $account_id, $user_id]);
+
+            } elseif ($type === 'transfer') {
+
+                $destInfo        = fetchAccountOrFail($pdo, $transfer_to, $user_id);
+                $amount_for_dest = ($account_currency !== $destInfo['currency_code'])
+                    ? $converted_amount * getExchangeRate($pdo, $account_currency, $destInfo['currency_code'])
+                    : $converted_amount;
+
+                $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ? AND user_id = ?")
+                    ->execute([$converted_amount, $account_id, $user_id]);
+
+                $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
+                    ->execute([$amount_for_dest, $transfer_to, $user_id]);
+            }
+
+            $pdo->commit();
+
+            $symbol = getCurrencySymbol($original_currency);
+            echo json_encode([
+                'success'        => true,
+                'message'        => "Transacción actualizada: {$symbol} " . number_format($original_amount, 2),
+                'transaction_id' => $transaction_id,
+            ]);
+            break;
 
         // ============================================================
         // ACCIÓN NO RECONOCIDA
