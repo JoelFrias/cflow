@@ -209,6 +209,54 @@ $currencies = $stmt->fetchAll();
 </div>
 
 <!-- ============================================ -->
+<!-- MODAL: ESTADO DE CUENTA                      -->
+<!-- ============================================ -->
+<div class="modal fade" id="statementModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:460px">
+        <div class="modal-content acc-modal-content">
+
+            <div class="modal-header acc-modal-header">
+                <div>
+                    <h5 class="modal-title" style="font-size:16px;font-weight:600;color:#1f2937">
+                        Estado de Cuenta
+                    </h5>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:2px" id="stmt-account-label">—</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body" style="padding:20px 24px">
+                <input type="hidden" id="stmt-account-id">
+
+                <!-- Instrucción -->
+                <p class="stmt-hint">
+                    Selecciona el mes y año para generar el estado. Puedes agregar
+                    varios períodos y se abrirá un PDF por cada uno.
+                </p>
+
+                <!-- Lista de períodos -->
+                <div id="stmt-periods-list"></div>
+
+                <!-- Botón agregar -->
+                <button class="stmt-btn-add" id="btn-stmt-add-period" type="button">
+                    <span style="font-size:15px;line-height:1">+</span>
+                    Agregar otro período
+                </button>
+            </div>
+
+            <div class="modal-footer" style="padding:14px 24px;border-top:1px solid #f0f0f0;gap:8px">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="stmt-btn-generate" id="btn-stmt-generate">
+                    <span id="stmt-gen-text">&#128196; Generar PDF(s)</span>
+                    <span id="stmt-gen-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ============================================ -->
 <!-- ESTILOS                                      -->
 <!-- ============================================ -->
 <style>
@@ -638,6 +686,82 @@ $currencies = $stmt->fetchAll();
     .acc-hist-table-wrap { display: block !important; }
     .acc-swipe-hint { display: none !important; }
 }
+
+/* ── Modal Estado de Cuenta ── */
+.stmt-hint {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+/* Fila de período */
+.stmt-period-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 10px;
+    animation: stmtFadeIn .2s ease;
+}
+@keyframes stmtFadeIn {
+    from { opacity:0; transform:translateY(-6px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+.stmt-period-row .acc-form-label { margin-bottom: 4px !important; }
+.stmt-remove-btn {
+    width: 34px;
+    height: 36px;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #dc2626;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .12s;
+    flex-shrink: 0;
+}
+.stmt-remove-btn:hover { background: #fee2e2; }
+
+/* Botón agregar período */
+.stmt-btn-add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f3f4f6;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #6b7280;
+    cursor: pointer;
+    width: 100%;
+    justify-content: center;
+    transition: all .15s;
+    margin-top: 4px;
+}
+.stmt-btn-add:hover { background: #e5e7eb; color: #374151; border-color: #9ca3af; }
+
+/* Botón generar */
+.stmt-btn-generate {
+    padding: 8px 22px;
+    background: #1e3a5f;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s;
+}
+.stmt-btn-generate:hover { background: #162d4a; }
+.stmt-btn-generate:disabled { opacity: .6; cursor: not-allowed; }
 </style>
 
 <!-- ============================================ -->
@@ -679,6 +803,11 @@ function renderAccountCard(acc) {
         <div class="acc-card-top">
             <div class="acc-card-name" title="${accEsc(acc.name)}">${accEsc(acc.name)}</div>
             <div class="acc-card-actions">
+                <button class="acc-action-btn btn-statement-account"
+                        data-id="${acc.id}" data-name="${accEsc(acc.name)}" title="Estado de Cuenta"
+                        style="font-size:13px">
+                    &#128196;
+                </button>
                 <button class="acc-action-btn btn-history-account"
                         data-id="${acc.id}" data-name="${accEsc(acc.name)}" title="Historial">
                     ≡
@@ -765,6 +894,12 @@ function attachCardEvents() {
             deleteAccount(btn.dataset.id, btn.dataset.name);
         });
     });
+    document.querySelectorAll('.btn-statement-account').forEach(btn => {
+    btn.addEventListener('click', e => {
+        e.stopPropagation();
+        openStatementModal(btn.dataset.id, btn.dataset.name);
+    });
+});
 }
 
 // ─── Historial ────────────────────────────────
@@ -1087,6 +1222,159 @@ document.getElementById('btn-create-account').addEventListener('click', function
     .finally(() => {
         txt.textContent = 'Crear Cuenta'; spn.classList.add('d-none');
         document.getElementById('btn-create-account').disabled = false;
+    });
+});
+
+// ─── Estado de Cuenta ────────────────────────────────────────
+
+const STMT_MONTHS = [
+    'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+];
+
+let _stmtRowCount = 0;
+
+function buildMonthOptions(selectedMonth) {
+    return STMT_MONTHS.map((m, i) => {
+        const val = i + 1;
+        const sel = val === selectedMonth ? ' selected' : '';
+        return `<option value="${val}"${sel}>${m}</option>`;
+    }).join('');
+}
+
+function buildYearOptions(selectedYear) {
+    const currentYear = new Date().getFullYear();
+    let opts = '';
+    for (let y = currentYear; y >= currentYear - 5; y--) {
+        const sel = y === selectedYear ? ' selected' : '';
+        opts += `<option value="${y}"${sel}>${y}</option>`;
+    }
+    return opts;
+}
+
+function addStatementPeriodRow(month, year) {
+    _stmtRowCount++;
+    const id      = _stmtRowCount;
+    const now     = new Date();
+    const selMonth = month ?? (now.getMonth() + 1);
+    const selYear  = year  ?? now.getFullYear();
+
+    const row = document.createElement('div');
+    row.className = 'stmt-period-row';
+    row.dataset.rowId = id;
+
+    row.innerHTML = `
+        <div>
+            <label class="acc-form-label">Mes</label>
+            <select class="acc-form-control stmt-month-sel" id="stmt-month-${id}">
+                ${buildMonthOptions(selMonth)}
+            </select>
+        </div>
+        <div>
+            <label class="acc-form-label">Año</label>
+            <select class="acc-form-control stmt-year-sel" id="stmt-year-${id}">
+                ${buildYearOptions(selYear)}
+            </select>
+        </div>
+        <button class="stmt-remove-btn" onclick="removeStatementRow(${id})" title="Quitar">✕</button>
+    `;
+
+    document.getElementById('stmt-periods-list').appendChild(row);
+    updateRemoveButtons();
+}
+
+function removeStatementRow(id) {
+    const row = document.querySelector(`.stmt-period-row[data-row-id="${id}"]`);
+    if (row) {
+        row.style.transition = 'opacity .15s, transform .15s';
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(-4px)';
+        setTimeout(() => { row.remove(); updateRemoveButtons(); }, 150);
+    }
+}
+
+function updateRemoveButtons() {
+    const rows = document.querySelectorAll('.stmt-period-row');
+    rows.forEach(r => {
+        const btn = r.querySelector('.stmt-remove-btn');
+        if (btn) btn.style.visibility = rows.length > 1 ? 'visible' : 'hidden';
+    });
+}
+
+function openStatementModal(accountId, accountName) {
+    document.getElementById('stmt-account-id').value         = accountId;
+    document.getElementById('stmt-account-label').textContent = accountName;
+    document.getElementById('stmt-periods-list').innerHTML   = '';
+    _stmtRowCount = 0;
+
+    // Fila inicial con mes/año actual
+    addStatementPeriodRow();
+
+    new bootstrap.Modal(document.getElementById('statementModal')).show();
+}
+
+// Botón para agregar más períodos
+document.getElementById('btn-stmt-add-period').addEventListener('click', () => {
+    addStatementPeriodRow();
+});
+
+// Botón generar
+document.getElementById('btn-stmt-generate').addEventListener('click', function () {
+    const accountId = document.getElementById('stmt-account-id').value;
+    if (!accountId) return;
+
+    const rows = document.querySelectorAll('.stmt-period-row');
+    if (!rows.length) {
+        accShowError('Agrega al menos un período.');
+        return;
+    }
+
+    // Recopilar períodos seleccionados
+    const periods = [];
+    const seen    = new Set();
+    let hasDupe   = false;
+
+    rows.forEach(row => {
+        const rowId = row.dataset.rowId;
+        const month = document.getElementById(`stmt-month-${rowId}`).value;
+        const year  = document.getElementById(`stmt-year-${rowId}`).value;
+        const key   = `${month}-${year}`;
+        if (seen.has(key)) { hasDupe = true; return; }
+        seen.add(key);
+        periods.push({ month, year });
+    });
+
+    if (hasDupe) {
+        accShowError('Hay períodos duplicados. Por favor verifica la selección.');
+        return;
+    }
+
+    // Feedback visual
+    const btn = this;
+    const txt = document.getElementById('stmt-gen-text');
+    const spn = document.getElementById('stmt-gen-spinner');
+    btn.disabled = true;
+    txt.textContent = 'Abriendo…';
+    spn.classList.remove('d-none');
+
+    // Abrir un tab por cada período (con pequeño delay entre cada uno
+    // para evitar que el bloqueador de popups los detenga)
+    periods.forEach((p, idx) => {
+        setTimeout(() => {
+            const url = `ajax/generate_statement.php?account_id=${encodeURIComponent(accountId)}`
+                      + `&month=${encodeURIComponent(p.month)}`
+                      + `&year=${encodeURIComponent(p.year)}`;
+            window.open(url, '_blank');
+
+            // Restaurar botón al terminar el último
+            if (idx === periods.length - 1) {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    txt.textContent = '📄 Generar PDF(s)';
+                    spn.classList.add('d-none');
+                }, 400);
+            }
+        }, idx * 350);   // 350ms entre tabs para no disparar bloqueador
     });
 });
 
