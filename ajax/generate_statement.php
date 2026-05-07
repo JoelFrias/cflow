@@ -3,7 +3,7 @@
 // Generador de estado de cuenta en PDF usando FPDF
 // Llamado vía GET: ?account_id=X&month=4&year=2026
 
-require_once '../config/database.php';          // tu archivo de conexión PDO
+require_once '../config/database.php';
 require_once '../libs/fpdf/fpdf.php';
 
 // ─── Seguridad ────────────────────────────────────────────────
@@ -36,132 +36,7 @@ if (!$account) { http_response_code(404); exit('Cuenta no encontrada'); }
 
 // ─── Rango del mes ────────────────────────────────────────────
 $dateFrom = sprintf('%04d-%02d-01', $year, $month);
-$dateTo   = date('Y-m-t', strtotime($dateFrom));   // último día del mes
-
-// ─── Balance inicial (antes del período) ─────────────────────
-// Suma neta de todas las transacciones previas al mes
-$stmtPrev = $pdo->prepare("
-    SELECT COALESCE(SUM(
-        CASE type
-            WHEN 'income'   THEN  amount
-            WHEN 'expense'  THEN -amount
-            WHEN 'transfer' THEN  0
-            ELSE 0
-        END
-    ), 0) AS net_before
-    FROM transactions
-    WHERE account_id = ? AND date < ?
-");
-// Para transfers: si esta cuenta es el origen, descuenta; si es destino, suma
-$stmtPrevTransfer = $pdo->prepare("
-    SELECT
-        COALESCE(SUM(CASE WHEN account_id = ?            THEN -amount ELSE 0 END), 0)
-      + COALESCE(SUM(CASE WHEN transfer_to_account = ?   THEN  amount ELSE 0 END), 0)
-      AS transfer_net
-    FROM transactions
-    WHERE type = 'transfer'
-      AND (account_id = ? OR transfer_to_account = ?)
-      AND date < ?
-");
-
-$stmtPrev->execute([$accountId, $dateFrom]);
-$prevRow = $stmtPrev->fetch(PDO::FETCH_ASSOC);
-
-$stmtPrevTransfer->execute([$accountId, $accountId, $accountId, $accountId, $dateFrom]);
-$prevTransferRow = $stmtPrevTransfer->fetch(PDO::FETCH_ASSOC);
-
-// Balance inicial = balance actual - movimientos del período y posteriores
-// Más sencillo: recalculamos desde el histórico
-// Obtenemos balance real acumulado ANTES del mes
-$stmtAllPrev = $pdo->prepare("
-    SELECT
-        COALESCE(SUM(CASE WHEN type='income'  THEN  amount ELSE 0 END), 0) AS total_inc,
-        COALESCE(SUM(CASE WHEN type='expense' THEN  amount ELSE 0 END), 0) AS total_exp,
-        COALESCE(SUM(CASE WHEN type='transfer' AND account_id=:aid             THEN -amount ELSE 0 END), 0)
-      + COALESCE(SUM(CASE WHEN type='transfer' AND transfer_to_account=:aid2   THEN  amount ELSE 0 END), 0)
-      AS transfer_net
-    FROM transactions
-    WHERE (account_id = :aid3 OR transfer_to_account = :aid4)
-      AND date < :dfrom
-");
-$stmtAllPrev->execute([
-    ':aid'   => $accountId, ':aid2'  => $accountId,
-    ':aid3'  => $accountId, ':aid4'  => $accountId,
-    ':dfrom' => $dateFrom
-]);
-$allPrev = $stmtAllPrev->fetch(PDO::FETCH_ASSOC);
-$openingBalance = (float)$allPrev['total_inc']
-                - (float)$allPrev['total_exp']
-                + (float)$allPrev['transfer_net'];
-
-// ─── Transacciones del período ────────────────────────────────
-$stmtTx = $pdo->prepare("
-    SELECT
-        t.id,
-        t.date,
-        t.type,
-        t.amount,
-        t.description,
-        t.transfer_to_account,
-        COALESCE(cat.name, 'Sin categoría') AS category_name,
-        acc2.name AS transfer_to_name
-    FROM   transactions t
-    LEFT JOIN categories cat ON cat.id = t.category_id
-    LEFT JOIN accounts   acc2 ON acc2.id = t.transfer_to_account
-    WHERE  (t.account_id = ? OR t.transfer_to_account = ?)
-      AND  t.date BETWEEN ? AND ?
-    ORDER  BY t.date ASC, t.id ASC
-");
-$stmtTx->execute([$accountId, $accountId, $dateFrom, $dateTo]);
-$transactions = $stmtTx->fetchAll(PDO::FETCH_ASSOC);
-
-// ─── Calcular créditos, débitos y balance corrido ─────────────
-$totalCredits = 0;
-$totalDebits  = 0;
-$runningBal   = $openingBalance;
-$txProcessed  = [];
-
-foreach ($transactions as $tx) {
-    $amt  = (float)$tx['amount'];
-    $credit = 0;
-    $debit  = 0;
-
-    if ($tx['type'] === 'income') {
-        $credit = $amt;
-        $totalCredits += $amt;
-    } elseif ($tx['type'] === 'expense') {
-        $debit = $amt;
-        $totalDebits += $amt;
-    } elseif ($tx['type'] === 'transfer') {
-        if ((int)$tx['transfer_to_account'] === $accountId) {
-            // Esta cuenta es el DESTINO → crédito
-            $credit = $amt;
-            $totalCredits += $amt;
-        } else {
-            // Esta cuenta es el ORIGEN → débito
-            $debit = $amt;
-            $totalDebits += $amt;
-        }
-    }
-
-    $runningBal += $credit - $debit;
-
-    $txProcessed[] = [
-        'date'        => $tx['date'],
-        'description' => $tx['description'] ?: $tx['category_name'],
-        'type'        => $tx['type'],
-        'credit'      => $credit,
-        'debit'       => $debit,
-        'balance'     => $runningBal,
-    ];
-}
-$closingBalance = $runningBal;
-
-// ─── Balances diarios (último del día) ───────────────────────
-$dailyBalances = [];
-foreach ($txProcessed as $tx) {
-    $dailyBalances[$tx['date']] = $tx['balance'];
-}
+$dateTo   = date('Y-m-t', strtotime($dateFrom));
 
 // ─── Helpers ──────────────────────────────────────────────────
 $sym    = $account['symbol'];
@@ -199,11 +74,6 @@ class BankStatement extends FPDF {
     public $period    = '';
     public $pageNum   = 0;
 
-    // Colores de la paleta
-    // Azul oscuro encabezado: 30,41,59
-    // Gris texto: 71,85,105
-    // Línea: 226,232,240
-
     function Header() {
         $this->pageNum++;
 
@@ -237,7 +107,6 @@ class BankStatement extends FPDF {
         $this->Cell(0, 5, enc('Documento generado el ' . date('d/m/Y H:i') . '  —  Solo para uso informativo'), 0, 0, 'C');
     }
 
-    // Dibuja una línea horizontal fina de separación
     function HRule($y = null, $r = 203, $g = 213, $b = 225) {
         $y = $y ?? $this->GetY();
         $this->SetDrawColor($r, $g, $b);
@@ -245,7 +114,6 @@ class BankStatement extends FPDF {
         $this->Line(14, $y, 196, $y);
     }
 
-    // Celda con sólo borde inferior
     function BorderCell($w, $h, $txt, $align = 'L', $fill = false) {
         $x = $this->GetX();
         $y = $this->GetY();
@@ -255,7 +123,6 @@ class BankStatement extends FPDF {
         }
         $this->SetDrawColor(226, 232, 240);
         $this->SetLineWidth(0.2);
-        // Sólo línea inferior
         $this->Line($x, $y + $h, $x + $w, $y + $h);
         $this->SetXY($x, $y);
         $this->Cell($w, $h, $txt, 0, 0, $align);
@@ -264,17 +131,16 @@ class BankStatement extends FPDF {
 
     function RoundedRect($x, $y, $w, $h, $r, $style = '') {
         $op = match($style) { 'F' => 'f', 'FD', 'DF' => 'B', default => 'S' };
-        $arc = 4/3 * (sqrt(2) - 1);
         $k = $this->k; $hp = $this->h;
         $this->_out(sprintf('%.2F %.2F m', ($x+$r)*$k, ($hp-$y)*$k));
         $this->_out(sprintf('%.2F %.2F l', ($x+$w-$r)*$k, ($hp-$y)*$k));
-        $this->_Arc($x+$w-$r+$r*$arc,$y-$r, $x+$w+$r,$y-$r+$r*$arc, $x+$w,$y);   // top-right (corregido abajo)
+        $this->_Arc($x+$w-$r,$y, $x+$w,$y+$r, $x+$w,$y);
         $this->_out(sprintf('%.2F %.2F l', ($x+$w)*$k, ($hp-($y+$h-$r))*$k));
-        $this->_Arc($x+$w,$y+$h-$r+$r*$arc, $x+$w-$r+$r*$arc,$y+$h, $x+$w-$r,$y+$h);
+        $this->_Arc($x+$w,$y+$h-$r, $x+$w-$r,$y+$h, $x+$w-$r,$y+$h);
         $this->_out(sprintf('%.2F %.2F l', ($x+$r)*$k, ($hp-($y+$h))*$k));
-        $this->_Arc($x+$r-$r*$arc,$y+$h, $x,$y+$h-$r+$r*$arc, $x,$y+$h-$r);
+        $this->_Arc($x+$r,$y+$h, $x,$y+$h-$r, $x,$y+$h-$r);
         $this->_out(sprintf('%.2F %.2F l', $x*$k, ($hp-($y+$r))*$k));
-        $this->_Arc($x,$y+$r-$r*$arc, $x+$r-$r*$arc,$y, $x+$r,$y);
+        $this->_Arc($x,$y+$r, $x+$r,$y, $x+$r,$y);
         $this->_out($op);
     }
 
@@ -285,6 +151,217 @@ class BankStatement extends FPDF {
             $x2*$this->k, ($h-$y2)*$this->k,
             $x3*$this->k, ($h-$y3)*$this->k));
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPARAR PERÍODO VS FECHA DE CREACIÓN DE LA CUENTA
+// ═══════════════════════════════════════════════════════════════
+
+// YearMonth numérico para comparación sencilla (ej: 202604)
+$createdDt = new DateTime($account['created_at']);
+$createdYM = (int)$createdDt->format('Ym');   // año+mes de creación
+$periodYM  = (int)(sprintf('%04d%02d', $year, $month));  // año+mes pedido
+
+// Nombre del archivo de salida
+$filename = 'Estado_' . preg_replace('/[^a-zA-Z0-9]/', '_', $account['name'])
+          . '_' . $monthName . '_' . $year . '.pdf';
+
+$typeNames = ['cash'=>'Efectivo','bank'=>'Cuenta Bancaria','wallet'=>'Wallet Digital',
+              'debit_card'=>'Tarjeta de Débito','credit_card'=>'Tarjeta de Crédito'];
+$typeName  = $typeNames[$account['type']] ?? $account['type'];
+
+// ═══════════════════════════════════════════════════════════════
+// CASO A: PERÍODO ANTERIOR A LA CREACIÓN DE LA CUENTA
+// ═══════════════════════════════════════════════════════════════
+if ($periodYM < $createdYM) {
+
+    $pdf = new BankStatement('P', 'mm', 'A4');
+    $pdf->acctName = $account['name'];
+    $pdf->period   = $monthName . ' ' . $year;
+    $pdf->SetMargins(14, 28, 14);
+    $pdf->SetAutoPageBreak(true, 16);
+    $pdf->AddPage();
+
+    // Info de cuenta
+    $pdf->SetFont('Helvetica', 'B', 11);
+    $pdf->SetTextColor(30, 41, 59);
+    $pdf->Cell(0, 7, enc($account['name']), 0, 1, 'L');
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->SetTextColor(100, 116, 139);
+    $pdf->Cell(95, 5, enc('Tipo de cuenta: ' . $typeName), 0, 0, 'L');
+    $pdf->Cell(95, 5, enc('Moneda: ' . $account['currency_name'] . ' (' . $sym . ')'), 0, 1, 'R');
+    $pdf->Cell(95, 5, enc('Período solicitado: ' . $monthName . ' ' . $year), 0, 1, 'L');
+    $pdf->Ln(4);
+    $pdf->HRule();
+    $pdf->Ln(30);
+
+    // Ícono / mensaje central
+    $pdf->SetFont('Helvetica', 'B', 14);
+    $pdf->SetTextColor(148, 163, 184);
+    $pdf->Cell(0, 10, enc('Sin datos para este período'), 0, 1, 'C');
+    $pdf->Ln(4);
+
+    $pdf->SetFont('Helvetica', '', 10);
+    $pdf->SetTextColor(148, 163, 184);
+    $pdf->MultiCell(0, 6,
+        enc('La cuenta "' . $account['name'] . '" fue creada el ' .
+            fmtDate($createdDt->format('Y-m-d')) . '.' . "\n" .
+            'No existen movimientos ni registros anteriores a esa fecha.'),
+        0, 'C'
+    );
+
+    $pdf->Output('I', $filename);
+    exit;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CASO B: PERÍODO VÁLIDO — CALCULAR BALANCES
+// ═══════════════════════════════════════════════════════════════
+
+// ── 1. Balance inicial REAL de la cuenta ─────────────────────
+//
+// Como la BD no guarda un campo "initial_balance", lo reconstruimos:
+//   balance_inicial = balance_actual
+//                   − Σ ingresos (all time)
+//                   + Σ gastos   (all time)
+//                   + Σ transferencias salientes (all time)
+//                   − Σ transferencias entrantes (all time)
+//
+$stmtTrueInit = $pdo->prepare("
+    SELECT
+        COALESCE(SUM(CASE WHEN t.type = 'income'  THEN t.amount ELSE 0 END), 0) AS total_inc,
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) AS total_exp,
+        COALESCE(SUM(CASE WHEN t.type = 'transfer' AND t.account_id          = :aid1 THEN t.amount ELSE 0 END), 0) AS total_out,
+        COALESCE(SUM(CASE WHEN t.type = 'transfer' AND t.transfer_to_account = :aid2 THEN t.amount ELSE 0 END), 0) AS total_in
+    FROM transactions t
+    WHERE t.account_id = :aid3 OR t.transfer_to_account = :aid4
+");
+$stmtTrueInit->execute([
+    ':aid1' => $accountId, ':aid2' => $accountId,
+    ':aid3' => $accountId, ':aid4' => $accountId,
+]);
+$initRow = $stmtTrueInit->fetch(PDO::FETCH_ASSOC);
+
+$trueInitialBalance = (float)$account['balance']
+    - (float)$initRow['total_inc']
+    + (float)$initRow['total_exp']
+    + (float)$initRow['total_out']
+    - (float)$initRow['total_in'];
+
+// ── 2. Neto de transacciones ANTES del período ────────────────
+//
+// Para el mes de apertura de la cuenta esto será 0 (no hay nada previo),
+// por lo que openingBalance quedará igual a trueInitialBalance.  ✓
+//
+$stmtAllPrev = $pdo->prepare("
+    SELECT
+        COALESCE(SUM(CASE WHEN type = 'income'  THEN amount ELSE 0 END), 0) AS total_inc,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_exp,
+        COALESCE(
+            SUM(CASE WHEN type = 'transfer' AND account_id          = :aid1 THEN -amount ELSE 0 END), 0)
+          + COALESCE(
+            SUM(CASE WHEN type = 'transfer' AND transfer_to_account = :aid2 THEN  amount ELSE 0 END), 0)
+          AS transfer_net
+    FROM transactions
+    WHERE (account_id = :aid3 OR transfer_to_account = :aid4)
+      AND date < :dfrom
+");
+$stmtAllPrev->execute([
+    ':aid1'  => $accountId, ':aid2'  => $accountId,
+    ':aid3'  => $accountId, ':aid4'  => $accountId,
+    ':dfrom' => $dateFrom,
+]);
+$allPrev = $stmtAllPrev->fetch(PDO::FETCH_ASSOC);
+
+// ── 3. Balance de apertura del período ───────────────────────
+//
+//   opening = balance_inicial_real
+//           + ingresos_previos − gastos_previos + transferencias_netas_previas
+//
+$openingBalance = $trueInitialBalance
+    + (float)$allPrev['total_inc']
+    - (float)$allPrev['total_exp']
+    + (float)$allPrev['transfer_net'];
+
+// ─── Transacciones del período ────────────────────────────────
+$stmtTx = $pdo->prepare("
+    SELECT
+        t.id,
+        t.date,
+        t.type,
+        t.amount,
+        t.account_id,
+        t.description,
+        t.transfer_to_account,
+        COALESCE(cat.name, 'Sin categoría') AS category_name,
+        acc2.name AS transfer_to_name
+    FROM   transactions t
+    LEFT JOIN categories cat  ON cat.id  = t.category_id
+    LEFT JOIN accounts   acc2 ON acc2.id = t.transfer_to_account
+    WHERE  (t.account_id = ? OR t.transfer_to_account = ?)
+      AND  t.date BETWEEN ? AND ?
+    ORDER  BY t.date ASC, t.id ASC
+");
+$stmtTx->execute([$accountId, $accountId, $dateFrom, $dateTo]);
+$transactions = $stmtTx->fetchAll(PDO::FETCH_ASSOC);
+
+// ─── Calcular créditos, débitos y balance corrido ─────────────
+$totalCredits = 0;
+$totalDebits  = 0;
+$runningBal   = $openingBalance;
+$txProcessed  = [];
+
+foreach ($transactions as $tx) {
+    $amt    = (float)$tx['amount'];
+    $credit = 0;
+    $debit  = 0;
+
+    if ($tx['type'] === 'income') {
+        $credit = $amt;
+        $totalCredits += $amt;
+    } elseif ($tx['type'] === 'expense') {
+        $debit = $amt;
+        $totalDebits += $amt;
+    } elseif ($tx['type'] === 'transfer') {
+        if ((int)$tx['transfer_to_account'] === $accountId) {
+            // Esta cuenta es el DESTINO → crédito
+            $credit = $amt;
+            $totalCredits += $amt;
+        } else {
+            // Esta cuenta es el ORIGEN → débito
+            $debit = $amt;
+            $totalDebits += $amt;
+        }
+    }
+
+    $runningBal += $credit - $debit;
+
+    // Descripción amigable para transferencias
+    $desc = $tx['description'];
+    if ($tx['type'] === 'transfer' && empty(trim($desc))) {
+        if ((int)$tx['transfer_to_account'] === $accountId) {
+            $desc = 'Transferencia recibida';
+        } else {
+            $dest = $tx['transfer_to_name'] ?? 'otra cuenta';
+            $desc = 'Transferencia a ' . $dest;
+        }
+    }
+
+    $txProcessed[] = [
+        'date'        => $tx['date'],
+        'description' => $desc ?: $tx['category_name'],
+        'type'        => $tx['type'],
+        'credit'      => $credit,
+        'debit'       => $debit,
+        'balance'     => $runningBal,
+    ];
+}
+$closingBalance = $runningBal;
+
+// ─── Balances diarios (último del día) ───────────────────────
+$dailyBalances = [];
+foreach ($txProcessed as $tx) {
+    $dailyBalances[$tx['date']] = $tx['balance'];
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -304,16 +381,20 @@ $pdf->Cell(0, 7, enc($account['name']), 0, 1, 'L');
 
 $pdf->SetFont('Helvetica', '', 9);
 $pdf->SetTextColor(100, 116, 139);
-$typeNames = ['cash'=>'Efectivo','bank'=>'Cuenta Bancaria','wallet'=>'Wallet Digital',
-              'debit_card'=>'Tarjeta de Débito','credit_card'=>'Tarjeta de Crédito'];
-$typeName = $typeNames[$account['type']] ?? $account['type'];
-
 $pdf->Cell(95, 5, enc('Tipo de cuenta: ' . $typeName), 0, 0, 'L');
 $pdf->Cell(95, 5, enc('Moneda: ' . $account['currency_name'] . ' (' . $sym . ')'), 0, 1, 'R');
 $pdf->Cell(95, 5, enc('Período: ' . $monthName . ' ' . $year), 0, 0, 'L');
 $pdf->Cell(95, 5, enc('Del ' . fmtDate($dateFrom) . ' al ' . fmtDate($dateTo)), 0, 1, 'R');
-$pdf->Ln(3);
 
+// Si es el mes de apertura, indicarlo
+if ($periodYM === $createdYM) {
+    $pdf->Ln(1);
+    $pdf->SetFont('Helvetica', 'I', 8);
+    $pdf->SetTextColor(99, 102, 241);
+    $pdf->Cell(0, 5, enc('Mes de apertura de la cuenta — el balance inicial refleja el saldo registrado al crearla'), 0, 1, 'L');
+}
+
+$pdf->Ln(3);
 $pdf->HRule();
 $pdf->Ln(5);
 
@@ -323,7 +404,7 @@ $pdf->SetTextColor(100, 116, 139);
 $pdf->Cell(0, 5, enc('RESUMEN DEL PERÍODO'), 0, 1, 'L');
 $pdf->Ln(2);
 
-// Caja de resumen — 4 columnas
+// 4 cajas de resumen
 $boxW = 43;
 $boxH = 20;
 $boxGap = 2;
@@ -331,26 +412,23 @@ $startX = 14;
 $y0 = $pdf->GetY();
 
 $summaryData = [
-    ['Balance Inicial',     $sym . ' ' . fmtAmt($openingBalance),  [241,245,249], [30,41,59]],
-    ['Total Créditos',      $sym . ' ' . fmtAmt($totalCredits),    [240,253,244], [22,101,52]],
-    ['Total Débitos',       $sym . ' ' . fmtAmt($totalDebits),     [255,241,242], [153,27,27]],
-    ['Balance Final',       $sym . ' ' . fmtAmt($closingBalance),  [239,246,255], [30,64,175]],
+    ['Balance Inicial',  $sym . ' ' . fmtAmt($openingBalance),  [241,245,249], [30,41,59]],
+    ['Total Créditos',   $sym . ' ' . fmtAmt($totalCredits),    [240,253,244], [22,101,52]],
+    ['Total Débitos',    $sym . ' ' . fmtAmt($totalDebits),     [255,241,242], [153,27,27]],
+    ['Balance Final',    $sym . ' ' . fmtAmt($closingBalance),  [239,246,255], [30,64,175]],
 ];
 
 foreach ($summaryData as $i => [$label, $value, $bg, $valColor]) {
     $bx = $startX + $i * ($boxW + $boxGap);
 
-    // Fondo
     $pdf->SetFillColor($bg[0], $bg[1], $bg[2]);
     $pdf->RoundedRect($bx, $y0, $boxW, $boxH, 2, 'F');
 
-    // Label
     $pdf->SetFont('Helvetica', '', 7);
     $pdf->SetTextColor(100, 116, 139);
     $pdf->SetXY($bx + 3, $y0 + 3);
     $pdf->Cell($boxW - 6, 4, enc(strtoupper($label)), 0, 1, 'L');
 
-    // Valor
     $pdf->SetFont('Helvetica', 'B', 9);
     $pdf->SetTextColor($valColor[0], $valColor[1], $valColor[2]);
     $pdf->SetXY($bx + 3, $y0 + 9);
@@ -360,17 +438,16 @@ foreach ($summaryData as $i => [$label, $value, $bg, $valColor]) {
 $pdf->SetY($y0 + $boxH + 6);
 
 // ── CABECERA DE TABLA ─────────────────────────────────────────
+// Anchos: Fecha=28 | Descripción=82 | Crédito=24 | Débito=24 | Balance=24
+$cW = [28, 82, 24, 24, 24];
+
 $pdf->SetFont('Helvetica', '', 7.5);
 $pdf->SetTextColor(100, 116, 139);
-
-// Anchos: Fecha=28 | Descripción=82 | Crédito=24 | Débito=24 | Balance=28
-$cW = [28, 82, 24, 24, 28];
-
 $pdf->SetFillColor(248, 250, 252);
 $y1 = $pdf->GetY();
 $pdf->Rect(14, $y1, 182, 7, 'F');
-
 $pdf->SetXY(14, $y1 + 1);
+
 $headers = ['FECHA', 'DESCRIPCI' . chr(211) . 'N', 'CR' . chr(201) . 'DITO', 'D' . chr(201) . 'BITO', 'BALANCE'];
 $aligns  = ['L', 'L', 'R', 'R', 'R'];
 foreach ($headers as $idx => $hdr) {
@@ -380,14 +457,36 @@ $pdf->Ln(7);
 $pdf->HRule();
 $pdf->Ln(0.5);
 
+// ── FILA DE BALANCE INICIAL ───────────────────────────────────
+$pdf->SetFont('Helvetica', 'I', 8);
+$yRow = $pdf->GetY();
+$pdf->SetFillColor(241, 245, 249);
+$pdf->Rect(14, $yRow, 182, 7, 'F');
+$pdf->SetXY(14, $yRow);
+$pdf->SetTextColor(71, 85, 105);
+$pdf->Cell($cW[0], 7, enc(fmtDate($dateFrom)), 0, 0, 'L');
+$pdf->SetTextColor(30, 41, 59);
+$pdf->Cell($cW[1], 7, enc('Balance Inicial del Período'), 0, 0, 'L');
+$pdf->Cell($cW[2], 7, '', 0, 0, 'R');
+$pdf->Cell($cW[3], 7, '', 0, 0, 'R');
+$pdf->SetFont('Helvetica', 'BI', 8);
+$pdf->SetTextColor(30, 64, 175);
+$pdf->Cell($cW[4], 7, enc(fmtAmt($openingBalance)), 0, 0, 'R');
+$pdf->SetDrawColor(226, 232, 240);
+$pdf->SetLineWidth(0.15);
+$pdf->Line(14, $yRow + 7, 196, $yRow + 7);
+$pdf->Ln(7);
+
 // ── FILAS DE TRANSACCIONES ────────────────────────────────────
 $pdf->SetFont('Helvetica', '', 8.5);
-$rowH = 7;
+$rowH   = 7;
 $altRow = false;
 
 if (empty($txProcessed)) {
-    $pdf->SetTextColor(150, 150, 150);
-    $pdf->Cell(0, 10, enc('No hay transacciones en este período.'), 0, 1, 'C');
+    $pdf->Ln(4);
+    $pdf->SetFont('Helvetica', 'I', 9);
+    $pdf->SetTextColor(148, 163, 184);
+    $pdf->Cell(0, 10, enc('No hay transacciones registradas en este período.'), 0, 1, 'C');
 } else {
     foreach ($txProcessed as $tx) {
         if ($pdf->GetY() > 265) {
@@ -409,41 +508,33 @@ if (empty($txProcessed)) {
         }
 
         $altRow = !$altRow;
-        $yRow = $pdf->GetY();
+        $yRow   = $pdf->GetY();
 
         if ($altRow) {
             $pdf->SetFillColor(250, 252, 255);
             $pdf->Rect(14, $yRow, 182, $rowH, 'F');
         }
 
-        // Fecha
         $pdf->SetTextColor(71, 85, 105);
         $pdf->SetXY(14, $yRow);
         $pdf->Cell($cW[0], $rowH, enc(fmtDate($tx['date'])), 0, 0, 'L');
 
-        // Descripción (truncar si es muy larga)
         $desc = mb_substr($tx['description'], 0, 55);
         $pdf->SetTextColor(30, 41, 59);
         $pdf->Cell($cW[1], $rowH, enc($desc), 0, 0, 'L');
 
-        // Crédito
         $pdf->SetTextColor(22, 101, 52);
-        $creditStr = $tx['credit'] > 0 ? fmtAmt($tx['credit']) : '';
-        $pdf->Cell($cW[2], $rowH, enc($creditStr), 0, 0, 'R');
+        $pdf->Cell($cW[2], $rowH, enc($tx['credit'] > 0 ? fmtAmt($tx['credit']) : ''), 0, 0, 'R');
 
-        // Débito
         $pdf->SetTextColor(153, 27, 27);
-        $debitStr = $tx['debit'] > 0 ? fmtAmt($tx['debit']) : '';
-        $pdf->Cell($cW[3], $rowH, enc($debitStr), 0, 0, 'R');
+        $pdf->Cell($cW[3], $rowH, enc($tx['debit'] > 0 ? fmtAmt($tx['debit']) : ''), 0, 0, 'R');
 
-        // Balance corrido
         $balColor = $tx['balance'] >= 0 ? [30, 41, 59] : [153, 27, 27];
         $pdf->SetTextColor($balColor[0], $balColor[1], $balColor[2]);
         $pdf->SetFont('Helvetica', 'B', 8.5);
         $pdf->Cell($cW[4], $rowH, enc(fmtAmt($tx['balance'])), 0, 0, 'R');
         $pdf->SetFont('Helvetica', '', 8.5);
 
-        // Línea inferior de la fila
         $pdf->SetDrawColor(226, 232, 240);
         $pdf->SetLineWidth(0.15);
         $pdf->Line(14, $yRow + $rowH, 196, $yRow + $rowH);
@@ -455,7 +546,6 @@ $pdf->Ln(8);
 
 // ── TABLA DE BALANCES DIARIOS ─────────────────────────────────
 if (!empty($dailyBalances)) {
-    // Asegurarse de que haya espacio suficiente
     if ($pdf->GetY() > 220) $pdf->AddPage();
 
     $pdf->SetFont('Helvetica', 'B', 9);
@@ -463,8 +553,7 @@ if (!empty($dailyBalances)) {
     $pdf->Cell(0, 5, enc('BALANCE CIERRE DE DÍA'), 0, 1, 'L');
     $pdf->Ln(2);
 
-    // Cabecera tabla diaria — centrada, dos columnas
-    $tW  = 80;   // ancho total de la mini-tabla
+    $tW     = 80;
     $xStart = 14;
 
     $pdf->SetFillColor(248, 250, 252);
@@ -486,7 +575,7 @@ if (!empty($dailyBalances)) {
         if ($pdf->GetY() > 270) $pdf->AddPage();
 
         $altD = !$altD;
-        $yD = $pdf->GetY();
+        $yD   = $pdf->GetY();
         if ($altD) {
             $pdf->SetFillColor(250, 252, 255);
             $pdf->Rect($xStart, $yD, $tW, 6.5, 'F');
@@ -507,13 +596,5 @@ if (!empty($dailyBalances)) {
     }
 }
 
-// ── RoundedRect helper (FPDF no lo incluye nativamente) ───────
-// Hack: usar MultiCell para fondo redondeado aproximado (Rect normal si no funciona)
-// FPDF sí tiene Rect pero no RoundedRect → usamos polígono simple
-// Se sobreescribe arriba con Rect si RoundedRect no está disponible.
-
 // ─── Salida ───────────────────────────────────────────────────
-$filename = 'Estado_' . preg_replace('/[^a-zA-Z0-9]/', '_', $account['name'])
-          . '_' . $monthName . '_' . $year . '.pdf';
-
-$pdf->Output('I', $filename);   // D = fuerza descarga | I = inline en navegador
+$pdf->Output('I', $filename);
