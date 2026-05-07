@@ -806,19 +806,19 @@ function renderAccountCard(acc) {
                 <button class="acc-action-btn btn-statement-account"
                         data-id="${acc.id}" data-name="${accEsc(acc.name)}" title="Estado de Cuenta"
                         style="font-size:13px">
-                    &#128196;
+                    <i class="fa-regular fa-file"></i>
                 </button>
                 <button class="acc-action-btn btn-history-account"
                         data-id="${acc.id}" data-name="${accEsc(acc.name)}" title="Historial">
-                    ≡
+                    <i class="fa-solid fa-bars-staggered"></i>
                 </button>
                 <button class="acc-action-btn btn-edit-account"
                         data-account='${dataAcc}' title="Editar">
-                    ✎
+                    <i class="fa-regular fa-pen-to-square"></i>
                 </button>
                 <button class="acc-action-btn del btn-delete-account"
                         data-id="${acc.id}" data-name="${accEsc(acc.name)}" title="Eliminar">
-                    ✕
+                    <i class="fa-solid fa-x"></i>
                 </button>
             </div>
         </div>
@@ -1370,7 +1370,7 @@ document.getElementById('btn-stmt-generate').addEventListener('click', function 
             if (idx === periods.length - 1) {
                 setTimeout(() => {
                     btn.disabled = false;
-                    txt.textContent = '📄 Generar PDF(s)';
+                    txt.textContent = 'Generar PDF(s)';
                     spn.classList.add('d-none');
                 }, 400);
             }
