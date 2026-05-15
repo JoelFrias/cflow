@@ -808,10 +808,6 @@ function renderAccountCard(acc) {
                         style="font-size:13px">
                     <i class="fa-regular fa-file"></i>
                 </button>
-                <button class="acc-action-btn btn-history-account"
-                        data-id="${acc.id}" data-name="${accEsc(acc.name)}" title="Historial">
-                    <i class="fa-solid fa-bars-staggered"></i>
-                </button>
                 <button class="acc-action-btn btn-edit-account"
                         data-account='${dataAcc}' title="Editar">
                     <i class="fa-regular fa-pen-to-square"></i>
@@ -876,12 +872,6 @@ function loadAccounts() {
 // ─── Eventos de tarjetas ──────────────────────
 
 function attachCardEvents() {
-    document.querySelectorAll('.btn-history-account').forEach(btn => {
-        btn.addEventListener('click', e => {
-            e.stopPropagation();
-            openAccountHistoryModal(btn.dataset.id, btn.dataset.name);
-        });
-    });
     document.querySelectorAll('.btn-edit-account').forEach(btn => {
         btn.addEventListener('click', e => {
             e.stopPropagation();
@@ -908,20 +898,6 @@ let _accTxAll   = [];
 let _accPage    = 1;
 let _accSymbol  = '';
 const ACC_PAGE  = 10;
-
-function openAccountHistoryModal(id, name) {
-    document.getElementById('acc-history-id').value         = id;
-    document.getElementById('acc-history-name').textContent = name;
-    document.getElementById('acc-filter-date-from').value   = '';
-    document.getElementById('acc-filter-date-to').value     = '';
-    document.getElementById('acc-filter-type').value        = '';
-    document.getElementById('acc-pagination').innerHTML     = '';
-    document.getElementById('acc-history-count').textContent = '';
-    document.getElementById('acc-history-summary').style.display = 'none';
-    _accTxAll = []; _accPage = 1; _accSymbol = '';
-    new bootstrap.Modal(document.getElementById('accountHistoryModal')).show();
-    loadAccountTx(id);
-}
 
 function loadAccountTx(id) {
     const container = document.getElementById('acc-history-container');
