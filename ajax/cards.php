@@ -34,13 +34,23 @@ try {
             $stmt2->execute([$user_id]);
             $dop_accounts = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
+            // Categorías de gasto del usuario
             $stmt3 = $pdo->prepare("
                 SELECT id, name FROM categories
-                WHERE user_id = ? AND type = 'expense'
+                WHERE user_id = ? AND type = 'expense' AND is_active = 1
                 ORDER BY name
             ");
             $stmt3->execute([$user_id]);
             $categories = $stmt3->fetchAll(PDO::FETCH_ASSOC);
+
+            // Categorías de ingreso (globales + del usuario) para créditos/devoluciones
+            $stmt4 = $pdo->prepare("
+                SELECT id, name FROM categories
+                WHERE (user_id = ? OR user_id IS NULL) AND type = 'income' AND is_active = 1
+                ORDER BY is_global DESC, name
+            ");
+            $stmt4->execute([$user_id]);
+            $income_categories = $stmt4->fetchAll(PDO::FETCH_ASSOC);
 
             $total_balance_usd = 0;
             $total_balance_dop = 0;
@@ -72,6 +82,7 @@ try {
                 'cards'             => $cards,
                 'dop_accounts'      => $dop_accounts,
                 'categories'        => $categories,
+                'income_categories' => $income_categories,
                 'usd_rate'          => (float) $usd_rate,
                 'total_balance_usd' => (float) $total_balance_usd,
                 'total_balance_dop' => (float) $total_balance_dop,
@@ -117,7 +128,7 @@ try {
             break;
 
         // ============================================
-        // EDITAR TARJETA  ← NEW
+        // EDITAR TARJETA
         // ============================================
         case 'edit_card':
             $card_id          = (int) ($_POST['card_id'] ?? 0);
@@ -130,7 +141,6 @@ try {
             if (empty($name))   throw new Exception('El nombre de la tarjeta es obligatorio.');
             if (!in_array($type, ['debit_card', 'credit_card'])) throw new Exception('Tipo de tarjeta inválido.');
 
-            // Verificar propiedad antes de modificar
             $chk = $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND user_id = ? AND type IN ('debit_card','credit_card')");
             $chk->execute([$card_id, $user_id]);
             if (!$chk->fetch()) throw new Exception('Tarjeta no encontrada o sin permiso.');
@@ -162,7 +172,6 @@ try {
 
             $pdo->beginTransaction();
             try {
-                // FOR UPDATE: bloqueo pesimista para evitar race conditions en el límite de crédito
                 $stmt = $pdo->prepare("
                     SELECT balance_usd, balance_dop, credit_limit_usd, credit_limit_dop
                     FROM accounts WHERE id = ? AND user_id = ? FOR UPDATE
@@ -185,7 +194,6 @@ try {
                     $pdo->prepare("UPDATE accounts SET balance_dop = ? WHERE id = ?")->execute([$new_balance, $card_id]);
                 }
 
-                // Obtener tasa dentro de la transacción para consistencia
                 $usd_rate      = getUSDRate($pdo);
                 $converted_dop = ($currency === 'USD') ? $amount * $usd_rate : $amount;
 
@@ -208,6 +216,66 @@ try {
             break;
 
         // ============================================
+        // REGISTRAR CRÉDITO / DEVOLUCIÓN / CASHBACK
+        // ============================================
+        case 'add_card_credit':
+            $card_id     = (int) ($_POST['card_id'] ?? 0);
+            $currency    = trim($_POST['currency'] ?? '');
+            $amount      = (float) ($_POST['amount'] ?? 0);
+            $description = trim($_POST['description'] ?? '');
+            $date        = trim($_POST['date'] ?? '');
+            $category_id = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
+
+            if ($card_id <= 0) throw new Exception('ID de tarjeta inválido.');
+            if ($amount <= 0)  throw new Exception('El monto debe ser mayor a 0.');
+            if (!in_array($currency, ['USD', 'DOP'])) throw new Exception('Moneda inválida.');
+            if (empty($date))  throw new Exception('La fecha es obligatoria.');
+
+            $pdo->beginTransaction();
+            try {
+                // Bloqueo pesimista + verificar propiedad
+                $stmt = $pdo->prepare("
+                    SELECT balance_usd, balance_dop
+                    FROM accounts
+                    WHERE id = ? AND user_id = ? AND type IN ('debit_card','credit_card')
+                    FOR UPDATE
+                ");
+                $stmt->execute([$card_id, $user_id]);
+                $card = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$card) throw new Exception('Tarjeta no encontrada.');
+
+                // Reducir el balance de la tarjeta (el banco/comercio te devuelve saldo)
+                if ($currency === 'USD') {
+                    $pdo->prepare("UPDATE accounts SET balance_usd = balance_usd - ? WHERE id = ?")
+                        ->execute([$amount, $card_id]);
+                } else {
+                    $pdo->prepare("UPDATE accounts SET balance_dop = balance_dop - ? WHERE id = ?")
+                        ->execute([$amount, $card_id]);
+                }
+
+                $usd_rate      = getUSDRate($pdo);
+                $converted_dop = ($currency === 'USD') ? $amount * $usd_rate : $amount;
+
+                // Se guarda como type='income' vinculado directamente a la tarjeta
+                $stmt = $pdo->prepare("
+                    INSERT INTO transactions
+                        (user_id, account_id, category_id, type, amount, original_amount,
+                         original_currency, card_currency, converted_amount_dop, date, description)
+                    VALUES (?, ?, ?, 'income', ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([$user_id, $card_id, $category_id, $amount, $amount, $currency, $currency, $converted_dop, $date, $description]);
+
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+
+            $symbol = $currency === 'USD' ? '$' : 'RD$';
+            echo json_encode(['success' => true, 'message' => "Crédito/devolución registrado en {$currency}: {$symbol}" . number_format($amount, 2)]);
+            break;
+
+        // ============================================
         // PAGAR TARJETA
         // ============================================
         case 'pay_card':
@@ -225,17 +293,13 @@ try {
 
             $pdo->beginTransaction();
             try {
-                // Bloquear cuenta de origen y tarjeta simultáneamente para evitar race conditions
-                // Orden fijo de IDs para prevenir deadlocks
                 $lock_ids = [$account_id, $card_id];
                 sort($lock_ids);
-
                 foreach ($lock_ids as $lock_id) {
                     $pdo->prepare("SELECT id FROM accounts WHERE id = ? AND user_id = ? FOR UPDATE")
                         ->execute([$lock_id, $user_id]);
                 }
 
-                // Leer saldos actualizados tras el bloqueo
                 $stmt = $pdo->prepare("SELECT balance FROM accounts WHERE id = ? AND user_id = ?");
                 $stmt->execute([$account_id, $user_id]);
                 $account = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -251,7 +315,6 @@ try {
                 if ($pay_usd > 0 && $card['balance_usd'] < $pay_usd) throw new Exception('Balance USD insuficiente en la tarjeta.');
                 if ($pay_dop > 0 && $card['balance_dop'] < $pay_dop) throw new Exception('Balance DOP insuficiente en la tarjeta.');
 
-                // Aplicar movimientos
                 $pdo->prepare("UPDATE accounts SET balance = balance - ? WHERE id = ?")
                     ->execute([$total_dop_to_debit, $account_id]);
 
@@ -268,8 +331,6 @@ try {
                 if ($pay_usd > 0) $description .= ' - USD: $' . number_format($pay_usd, 2) . ' (RD$ ' . number_format($dop_amount_for_usd, 2) . ')';
                 if ($pay_dop > 0) $description .= ' - DOP: RD$ ' . number_format($pay_dop, 2);
 
-                // FIX: se guarda transfer_to_account = card_id para que
-                // get_card_transactions pueda vincular pagos a la tarjeta correcta.
                 $stmt = $pdo->prepare("
                     INSERT INTO transactions
                         (user_id, account_id, category_id, type, amount, original_amount,
@@ -286,7 +347,7 @@ try {
                     $pay_dop,
                     $payment_date,
                     $description,
-                    $card_id,             // transfer_to_account = card_id ← fix clave
+                    $card_id,
                 ]);
 
                 $pdo->commit();
@@ -312,7 +373,6 @@ try {
 
             $pdo->beginTransaction();
             try {
-                // Bloqueo pesimista para evitar eliminación concurrente
                 $stmt = $pdo->prepare("
                     SELECT balance_usd, balance_dop FROM accounts
                     WHERE id = ? AND user_id = ? FOR UPDATE
@@ -347,7 +407,6 @@ try {
 
             if ($card_id <= 0) throw new Exception('ID de tarjeta inválido.');
 
-            // Verificar propiedad
             $chk = $pdo->prepare("
                 SELECT id, name FROM accounts
                 WHERE id = ? AND user_id = ? AND type IN ('debit_card','credit_card')
@@ -356,13 +415,12 @@ try {
             $card = $chk->fetch(PDO::FETCH_ASSOC);
             if (!$card) throw new Exception('Tarjeta no encontrada o sin permiso.');
 
-            // Construir filtros de fecha reutilizables
             $date_where  = '';
             $date_params = [];
             if ($date_from !== '') { $date_where .= ' AND t.date >= ?'; $date_params[] = $date_from; }
             if ($date_to   !== '') { $date_where .= ' AND t.date <= ?'; $date_params[] = $date_to;   }
 
-            // Gastos directos en la tarjeta
+            // — Gastos directos en la tarjeta —
             $sql_expenses = "
                 SELECT
                     t.id,
@@ -384,7 +442,27 @@ try {
             ";
             $params_expenses = array_merge([$user_id, $card_id], $date_params);
 
-            // Pagos a la tarjeta vinculados por transfer_to_account = card_id
+            // — Créditos / devoluciones / cashback (income vinculado a la tarjeta) —
+            $sql_credits = "
+                SELECT
+                    t.id,
+                    t.date,
+                    t.description,
+                    t.amount,
+                    t.original_currency          AS currency,
+                    t.converted_amount_dop,
+                    'credit'                     AS row_type,
+                    cat.name                     AS category_name
+                FROM transactions t
+                LEFT JOIN categories cat ON t.category_id = cat.id
+                WHERE t.user_id    = ?
+                  AND t.account_id = ?
+                  AND t.type       = 'income'
+                {$date_where}
+            ";
+            $params_credits = array_merge([$user_id, $card_id], $date_params);
+
+            // — Pagos a la tarjeta vinculados por transfer_to_account = card_id —
             $sql_payments = "
                 SELECT
                     t.id,
@@ -407,20 +485,25 @@ try {
             if ($type_filter === 'expense') {
                 $sql    = $sql_expenses . " ORDER BY date DESC, id DESC LIMIT 200";
                 $params = $params_expenses;
+            } elseif ($type_filter === 'credit') {
+                $sql    = $sql_credits . " ORDER BY date DESC, id DESC LIMIT 200";
+                $params = $params_credits;
             } elseif ($type_filter === 'payment') {
-                $sql    = $sql_payments  . " ORDER BY date DESC, id DESC LIMIT 200";
+                $sql    = $sql_payments . " ORDER BY date DESC, id DESC LIMIT 200";
                 $params = $params_payments;
             } else {
                 $sql = "
                     SELECT * FROM (
                         {$sql_expenses}
                         UNION ALL
+                        {$sql_credits}
+                        UNION ALL
                         {$sql_payments}
                     ) combined
                     ORDER BY date DESC, id DESC
                     LIMIT 200
                 ";
-                $params = array_merge($params_expenses, $params_payments);
+                $params = array_merge($params_expenses, $params_credits, $params_payments);
             }
 
             $stmt = $pdo->prepare($sql);
@@ -438,6 +521,7 @@ try {
                 $t['currency_symbol'] = $t['currency'] === 'USD' ? '$' : 'RD$';
 
                 if ($t['row_type'] === 'expense') {
+                    // Gasto: incrementó la deuda → restar hacia atrás
                     if ($t['currency'] === 'USD') {
                         $t['balance_after'] = $running_usd;
                         $running_usd = round($running_usd - (float) $t['amount'], 2);
@@ -445,8 +529,17 @@ try {
                         $t['balance_after'] = $running_dop;
                         $running_dop = round($running_dop - (float) $t['amount'], 2);
                     }
+                } elseif ($t['row_type'] === 'credit') {
+                    // Crédito: redujo la deuda sin pasar por cuenta → sumar hacia atrás
+                    if ($t['currency'] === 'USD') {
+                        $t['balance_after'] = $running_usd;
+                        $running_usd = round($running_usd + (float) $t['amount'], 2);
+                    } else {
+                        $t['balance_after'] = $running_dop;
+                        $running_dop = round($running_dop + (float) $t['amount'], 2);
+                    }
                 } else {
-                    // Pago: redujo la deuda → sumar de vuelta para reconstruir hacia atrás
+                    // Pago: redujo la deuda → sumar hacia atrás (siempre DOP en amount)
                     $t['balance_after'] = $running_dop;
                     $running_dop = round($running_dop + (float) $t['amount'], 2);
                 }
@@ -470,7 +563,6 @@ try {
             if ($transaction_id <= 0) throw new Exception('ID de transacción inválido.');
             if ($card_id <= 0)        throw new Exception('ID de tarjeta inválido.');
 
-            // Verificar propiedad de la tarjeta
             $chk = $pdo->prepare("
                 SELECT id FROM accounts
                 WHERE id = ? AND user_id = ? AND type IN ('debit_card','credit_card')
@@ -485,25 +577,33 @@ try {
                 $tx = $stmt->fetch(PDO::FETCH_ASSOC);
                 if (!$tx) throw new Exception('Transacción no encontrada.');
 
-                // Verificar antigüedad ≤ 3 días (comparar date, no datetime)
+                // Verificar antigüedad ≤ 3 días
                 $tz       = new DateTimeZone('-04:00');
                 $txDate   = new DateTime($tx['date'], $tz);
                 $today    = new DateTime('now', $tz);
                 $today->setTime(0, 0, 0);
                 $daysDiff = (int)$today->diff($txDate)->days;
-                if ($today < $txDate) $daysDiff = 0; // fecha futura = 0 días
+                if ($today < $txDate) $daysDiff = 0;
                 if ($daysDiff > 3) {
                     throw new Exception('Solo puedes eliminar transacciones con 3 días o menos de antigüedad.');
                 }
 
-                // Determinar si es gasto directo o pago a tarjeta
                 $pay_usd     = (float)($tx['payment_usd_amount'] ?? 0);
                 $pay_dop_col = (float)($tx['payment_dop_amount'] ?? 0);
 
-                $is_expense = ((int)$tx['account_id'] === $card_id && $pay_usd == 0 && $pay_dop_col == 0);
-                $is_payment = ((int)$tx['transfer_to_account'] === $card_id);
+                // Clasificar el tipo de transacción (con checks explícitos de type)
+                $is_expense = ($tx['type'] === 'expense'
+                    && (int)$tx['account_id'] === $card_id
+                    && $pay_usd == 0
+                    && $pay_dop_col == 0);
 
-                if (!$is_expense && !$is_payment) {
+                $is_payment = ($tx['type'] === 'expense'
+                    && (int)$tx['transfer_to_account'] === $card_id);
+
+                $is_credit  = ($tx['type'] === 'income'
+                    && (int)$tx['account_id'] === $card_id);
+
+                if (!$is_expense && !$is_payment && !$is_credit) {
                     throw new Exception('Esta transacción no está vinculada a la tarjeta especificada.');
                 }
 
@@ -517,12 +617,21 @@ try {
                         $pdo->prepare("UPDATE accounts SET balance_dop = balance_dop - ? WHERE id = ? AND user_id = ?")
                             ->execute([$tx['amount'], $card_id, $user_id]);
                     }
+                } elseif ($is_credit) {
+                    // Revertir crédito: restaurar la deuda que se redujo
+                    $currency = $tx['original_currency'] ?? 'DOP';
+                    if ($currency === 'USD') {
+                        $pdo->prepare("UPDATE accounts SET balance_usd = balance_usd + ? WHERE id = ? AND user_id = ?")
+                            ->execute([$tx['amount'], $card_id, $user_id]);
+                    } else {
+                        $pdo->prepare("UPDATE accounts SET balance_dop = balance_dop + ? WHERE id = ? AND user_id = ?")
+                            ->execute([$tx['amount'], $card_id, $user_id]);
+                    }
                 } else {
-                    // Revertir pago: devolver DOP a la cuenta de origen
+                    // Revertir pago: devolver DOP a la cuenta de origen y restaurar deuda
                     $pdo->prepare("UPDATE accounts SET balance = balance + ? WHERE id = ? AND user_id = ?")
                         ->execute([$tx['amount'], $tx['account_id'], $user_id]);
 
-                    // Restaurar deuda en la tarjeta
                     if ($pay_usd > 0) {
                         $pdo->prepare("UPDATE accounts SET balance_usd = balance_usd + ? WHERE id = ? AND user_id = ?")
                             ->execute([$pay_usd, $card_id, $user_id]);

@@ -33,14 +33,20 @@ if (!isset($_SESSION['user_id'])) {
     --warn-mid: #BA7517;
     --info-light: #eef4fd;
     --info-mid: #185FA5;
+    --credit-light: #f0fdfa;
+    --credit-mid: #0d9488;
+    --credit-text: #134e4a;
 
-    /* History modal tokens (mirrors transactions module) */
+    /* History modal tokens */
     --h-inc:      #1D9E75;
     --h-exp:      #D85A30;
+    --h-cre:      #0d9488;
     --h-inc-bg:   #eaf3de;
     --h-exp-bg:   #faece7;
+    --h-cre-bg:   #f0fdfa;
     --h-inc-text: #3B6D11;
     --h-exp-text: #993C1D;
+    --h-cre-text: #134e4a;
     --h-border:   #e8e8e8;
     --h-radius:   10px;
 }
@@ -111,7 +117,6 @@ body { background: #f5f5f5; }
 .badge-credit { background: var(--danger-light); color: var(--danger-mid); }
 .badge-debit  { background: var(--info-light);   color: var(--info-mid); }
 
-/* Edit button */
 .card-edit-btn {
     width: 28px;
     height: 28px;
@@ -177,8 +182,9 @@ body { background: #f5f5f5; }
     white-space: nowrap;
 }
 .card-action-btn:hover { background: #f5f5f5; }
-.card-action-btn.btn-expense { background: var(--info-light); border-color: transparent; color: var(--info-mid); }
+.card-action-btn.btn-expense { background: var(--info-light);   border-color: transparent; color: var(--info-mid); }
 .card-action-btn.btn-pay    { background: var(--success-light); border-color: transparent; color: var(--success-mid); }
+.card-action-btn.btn-credit { background: var(--credit-light);  border-color: transparent; color: var(--credit-mid); }
 
 .card-limit-alert {
     font-size: 11px;
@@ -282,8 +288,9 @@ body { background: #f5f5f5; }
     .tx-date { font-size: 11px; color: var(--muted); margin-top: 1px; }
     .tx-amount { font-size: 13px; font-weight: 600; text-align: right; }
     .tx-badge { font-size: 10px; padding: 1px 7px; border-radius: 20px; }
-    .tx-gasto { background: var(--danger-light); color: var(--danger-mid); }
-    .tx-pago  { background: var(--success-light); color: var(--success-mid); }
+    .tx-gasto   { background: var(--danger-light);  color: var(--danger-mid); }
+    .tx-pago    { background: var(--success-light); color: var(--success-mid); }
+    .tx-credito { background: var(--credit-light);  color: var(--credit-mid); }
 }
 
 /* =============================================
@@ -326,10 +333,8 @@ body { background: #f5f5f5; }
 .empty-state p { font-size: 14px; margin-bottom: 16px; }
 
 /* =============================================
-   HISTORY MODAL — REDESIGN (mirrors transactions module)
+   HISTORY MODAL — REDESIGN
    ============================================= */
-
-/* Filter toggle header */
 .hist-filter-toggle {
     display: flex;
     align-items: center;
@@ -359,8 +364,6 @@ body { background: #f5f5f5; }
     padding: 1px 7px;
     border-radius: 20px;
 }
-
-/* Filter panel */
 .hist-filter-panel {
     padding: 14px 20px;
     background: #fff;
@@ -417,8 +420,6 @@ body { background: #f5f5f5; }
     transition: background 0.15s;
 }
 .hist-btn-clear:hover { background: #e5e7eb; }
-
-/* Controls bar (records info) */
 .hist-controls-bar {
     display: flex;
     align-items: center;
@@ -428,8 +429,6 @@ body { background: #f5f5f5; }
     border-bottom: 1px solid var(--h-border);
 }
 .hist-records-info { font-size: 12px; color: #9ca3af; }
-
-/* Loading / empty */
 .hist-loading {
     display: flex;
     align-items: center;
@@ -447,7 +446,7 @@ body { background: #f5f5f5; }
 }
 .hist-empty-icon { font-size: 30px; margin-bottom: 8px; opacity: 0.4; display: block; }
 
-/* ── Mobile list (inside history modal) ── */
+/* Mobile list */
 .hist-mobile-list {
     display: flex;
     flex-direction: column;
@@ -476,8 +475,9 @@ body { background: #f5f5f5; }
     justify-content: center;
     flex-shrink: 0;
 }
-.hdot-exp { background: var(--h-exp-bg); color: var(--h-exp-text); }
+.hdot-exp { background: var(--h-exp-bg);  color: var(--h-exp-text); }
 .hdot-pay { background: var(--success-light); color: var(--success-mid); }
+.hdot-cre { background: var(--h-cre-bg);  color: var(--h-cre-text); }
 .hist-main { flex: 1; min-width: 0; }
 .hist-desc {
     font-size: 13px;
@@ -493,6 +493,7 @@ body { background: #f5f5f5; }
 .hist-amt-main { font-size: 14px; font-weight: 600; }
 .hamt-exp { color: var(--h-exp); }
 .hamt-pay { color: var(--success-mid); }
+.hamt-cre { color: var(--h-cre); }
 .hist-amt-sub { font-size: 10px; color: #9ca3af; margin-top: 1px; }
 .hist-type-badge {
     font-size: 10px;
@@ -502,8 +503,9 @@ body { background: #f5f5f5; }
 }
 .hbadge-exp { background: var(--h-exp-bg);   color: var(--h-exp-text); }
 .hbadge-pay { background: var(--success-light); color: var(--success-mid); }
+.hbadge-cre { background: var(--h-cre-bg);   color: var(--h-cre-text); }
 
-/* ── Desktop table (inside history modal) ── */
+/* Desktop table */
 .hist-desktop-wrap { display: none; }
 .hist-desktop-card {
     background: #fff;
@@ -588,7 +590,6 @@ body { background: #f5f5f5; }
     justify-content: center;
 }
 
-/* ── Responsive for history modal ── */
 @media (min-width: 768px) {
     .hist-mobile-list { display: none !important; }
     .hist-desktop-wrap { display: block !important; }
@@ -598,7 +599,7 @@ body { background: #f5f5f5; }
     .hist-mobile-list  { display: flex !important; }
 }
 
-/* Pagination (history modal) */
+/* Pagination */
 .hist-pagination {
     display: flex;
     align-items: center;
@@ -629,9 +630,7 @@ body { background: #f5f5f5; }
 </head>
 <body>
 
-<!-- ============================================ -->
-<!-- PAGE HEADER                                 -->
-<!-- ============================================ -->
+<!-- PAGE HEADER -->
 <div class="page-header">
     <h5><i class="fas fa-credit-card me-2 text-primary"></i>Mis Tarjetas</h5>
     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createCardModal">
@@ -639,9 +638,7 @@ body { background: #f5f5f5; }
     </button>
 </div>
 
-<!-- ============================================ -->
-<!-- SUMMARY STRIP                               -->
-<!-- ============================================ -->
+<!-- SUMMARY STRIP -->
 <div class="summary-strip">
     <div class="summary-item">
         <span class="s-label">Tarjetas</span>
@@ -664,21 +661,16 @@ body { background: #f5f5f5; }
     </div>
 </div>
 
-<!-- Alertas globales -->
 <div id="limit-alerts" class="px-3 pt-2"></div>
 
-<!-- ============================================ -->
-<!-- MOBILE: SLIDER                              -->
-<!-- ============================================ -->
+<!-- MOBILE: SLIDER -->
 <div class="section-label">Selecciona una tarjeta</div>
-
 <div class="cards-slider-outer" id="mobile-slider-outer">
     <div class="cards-slider-wrap" id="cards-slider">
         <div class="skeleton-card" style="flex:0 0 calc(100vw - 48px);max-width:340px;"></div>
         <div class="skeleton-card" style="flex:0 0 calc(100vw - 48px);max-width:340px;"></div>
     </div>
 </div>
-
 <div class="dot-indicators" id="dot-indicators"></div>
 
 <!-- Panel detalle / historial (solo móvil) -->
@@ -695,9 +687,7 @@ body { background: #f5f5f5; }
     </div>
 </div>
 
-<!-- ============================================ -->
-<!-- DESKTOP: GRID                               -->
-<!-- ============================================ -->
+<!-- DESKTOP: GRID -->
 <div class="container-fluid py-3 d-none d-md-block">
     <div class="cards-desktop" id="cards-desktop">
         <div class="skeleton-card"></div>
@@ -754,7 +744,7 @@ body { background: #f5f5f5; }
 </div>
 
 <!-- ============================================ -->
-<!-- MODAL: EDITAR TARJETA  ← NEW              -->
+<!-- MODAL: EDITAR TARJETA                       -->
 <!-- ============================================ -->
 <div class="modal fade" id="editCardModal" tabindex="-1">
     <div class="modal-dialog">
@@ -779,11 +769,11 @@ body { background: #f5f5f5; }
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Límite (USD)</label>
-                        <input type="number" step="0.01" id="edit-card-limit-usd" class="form-control" placeholder="Opcional (dejar vacío para sin límite)">
+                        <input type="number" step="0.01" id="edit-card-limit-usd" class="form-control" placeholder="Opcional">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Límite (DOP)</label>
-                        <input type="number" step="0.01" id="edit-card-limit-dop" class="form-control" placeholder="Opcional (dejar vacío para sin límite)">
+                        <input type="number" step="0.01" id="edit-card-limit-dop" class="form-control" placeholder="Opcional">
                     </div>
                 </div>
                 <div class="alert alert-warning">
@@ -845,6 +835,63 @@ body { background: #f5f5f5; }
                 <button type="button" class="btn btn-danger" id="btn-add-expense">
                     <span id="btn-expense-text">Registrar Gasto</span>
                     <span id="btn-expense-spinner" class="spinner-border spinner-border-sm d-none"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL: CRÉDITO / DEVOLUCIÓN / CASHBACK      -->
+<!-- ============================================ -->
+<div class="modal fade" id="creditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="border-bottom:1px solid #e8e8e8;">
+                <h5 class="modal-title">
+                    <i class="fas fa-tag me-2" style="color:var(--credit-mid);"></i>
+                    Devolución / Cashback
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="credit-card-id">
+                <div class="alert" style="background:var(--credit-light);border:1px solid #99f6e4;color:var(--credit-text);font-size:13px;">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Registra devoluciones de comercios o cashback del banco. Reduce el saldo de la tarjeta <strong>sin debitar ninguna cuenta</strong>.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Moneda</label>
+                    <select id="credit-currency" class="form-control" required>
+                        <option value="DOP">DOP - Peso Dominicano</option>
+                        <option value="USD">USD - Dólar Americano</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Monto</label>
+                    <input type="number" step="0.01" id="credit-amount" class="form-control" placeholder="0.00" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Categoría</label>
+                    <select id="credit-category" class="form-control">
+                        <option value="">Seleccionar categoría</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Fecha</label>
+                    <input type="date" id="credit-date" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Descripción</label>
+                    <textarea id="credit-description" class="form-control" rows="2" placeholder="Ej: Cashback Visa, Devolución Amazon..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn" id="btn-add-credit"
+                        style="background:var(--credit-mid);color:#fff;border:none;">
+                    <span id="btn-credit-text">Registrar Crédito</span>
+                    <span id="btn-credit-spinner" class="spinner-border spinner-border-sm d-none"></span>
                 </button>
             </div>
         </div>
@@ -935,7 +982,7 @@ body { background: #f5f5f5; }
 </div>
 
 <!-- ============================================ -->
-<!-- MODAL: HISTORIAL COMPLETO  ← REDESIGNED    -->
+<!-- MODAL: HISTORIAL COMPLETO                   -->
 <!-- ============================================ -->
 <div class="modal fade" id="transactionsHistoryModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -947,8 +994,6 @@ body { background: #f5f5f5; }
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-
-            <!-- Body sin padding propio (cada sección maneja el suyo) -->
             <div class="modal-body p-0" style="background:#f6f7f9;">
                 <input type="hidden" id="history-card-id">
 
@@ -962,7 +1007,7 @@ body { background: #f5f5f5; }
                     <svg class="hist-filter-chevron" id="histFilterChevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
                 </div>
 
-                <!-- Filter panel (collapsible) -->
+                <!-- Filter panel -->
                 <div class="hist-filter-panel" id="histFiltersPanel" style="display:none;">
                     <div class="hist-filter-grid">
                         <div>
@@ -978,6 +1023,7 @@ body { background: #f5f5f5; }
                             <select id="filter-type" class="hist-filter-input">
                                 <option value="">Todos</option>
                                 <option value="expense">Gastos</option>
+                                <option value="credit">Créditos / Dev.</option>
                                 <option value="payment">Pagos</option>
                             </select>
                         </div>
@@ -995,7 +1041,7 @@ body { background: #f5f5f5; }
                     <span class="hist-records-info" id="hist-records-info"></span>
                 </div>
 
-                <!-- Content area: mobile list + desktop table rendered here -->
+                <!-- Content area -->
                 <div id="hist-content-area">
                     <div class="hist-loading">
                         <div class="spinner-border spinner-border-sm text-secondary"></div>
@@ -1006,7 +1052,6 @@ body { background: #f5f5f5; }
                 <!-- Pagination -->
                 <div id="history-pagination" class="hist-pagination"></div>
             </div>
-
             <div class="modal-footer" style="padding:12px 20px;border-top:1px solid #e8e8e8;background:#fff;">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
             </div>
@@ -1014,9 +1059,7 @@ body { background: #f5f5f5; }
     </div>
 </div>
 
-<!-- ============================================ -->
-<!-- SCRIPTS                                     -->
-<!-- ============================================ -->
+<!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -1024,11 +1067,13 @@ body { background: #f5f5f5; }
 const CARDS_AJAX_URL = 'ajax/cards.php';
 
 // Estado global
-let _usdRate       = 62.50;
-let _categories    = [];
-let _dopAccounts   = [];
-let _allCards      = [];
-let _activeCardIdx = 0;
+let _usdRate           = 62.50;
+let _categories        = [];
+let _incomeCategories  = [];   // para el modal de crédito/devolución
+let _dopAccounts       = [];
+let _allCards          = [];
+let _activeCardIdx     = 0;
+let _sliderScrollHandler = null; // referencia al listener de scroll para evitar duplicados
 
 // Historial
 let _historyTransactions = [];
@@ -1118,7 +1163,6 @@ function buildCardInnerHTML(card) {
 
     return `
         ${alertHtml}
-        <!-- Card header row: badge + edit button -->
         <div class="card-header-row">
             <span class="card-type-badge ${typeBadge}">${typeLabel}</span>
             <button class="card-edit-btn" onclick="openEditModal(${card.id})" title="Editar tarjeta">
@@ -1146,11 +1190,14 @@ function buildCardInnerHTML(card) {
             <button class="card-action-btn btn-expense" onclick="openExpenseModal(${card.id})">
                 <i class="fas fa-plus" style="font-size:10px;"></i> Gasto
             </button>
+            <button class="card-action-btn btn-credit" onclick="openCreditModal(${card.id})">
+                <i class="fas fa-tag" style="font-size:10px;"></i> Crédito
+            </button>
             <button class="card-action-btn btn-pay" onclick="openPayModal(${card.id})">
                 <i class="fas fa-money-bill-wave" style="font-size:10px;"></i> Pagar
             </button>
             <button class="card-action-btn" onclick="openHistoryModal(${card.id},'${escapeHtml(card.name)}')">
-                <i class="fas fa-history" style="font-size:10px;"></i> Historial
+                <i class="fas fa-history" style="font-size:10px;"></i>
             </button>
             ${deleteBtn}
         </div>
@@ -1188,7 +1235,7 @@ function renderAlerts(data) {
 /* ============================================
    MOBILE SLIDER
    ============================================ */
-function renderMobileSlider(cards) {
+function renderMobileSlider(cards, initialIdx = 0) {
     const slider = document.getElementById('cards-slider');
     const dotsEl = document.getElementById('dot-indicators');
     const panel  = document.getElementById('card-detail-panel');
@@ -1209,21 +1256,38 @@ function renderMobileSlider(cards) {
         return;
     }
 
-    slider.innerHTML = cards.map((card,idx) =>
-        `<div class="card-slide ${idx===0?'is-active':''}" data-idx="${idx}">
+    // Clampar índice por si las cards cambiaron de cantidad
+    initialIdx = Math.max(0, Math.min(initialIdx, cards.length - 1));
+
+    slider.innerHTML = cards.map((card, idx) =>
+        `<div class="card-slide ${idx === initialIdx ? 'is-active' : ''}" data-idx="${idx}">
             ${buildCardInnerHTML(card)}
         </div>`
     ).join('');
 
-    dotsEl.innerHTML = cards.map((_,i) =>
-        `<div class="dot ${i===0?'active':''}"></div>`
+    dotsEl.innerHTML = cards.map((_, i) =>
+        `<div class="dot ${i === initialIdx ? 'active' : ''}"></div>`
     ).join('');
 
     panel.style.display = '';
-    _activeCardIdx = 0;
-    renderMobileDetailPanel(cards[0]);
+    _activeCardIdx = initialIdx;
+    renderMobileDetailPanel(cards[initialIdx]);
 
-    slider.addEventListener('scroll', () => {
+    // Restaurar posición de scroll sin animación
+    if (initialIdx > 0) {
+        requestAnimationFrame(() => {
+            const slideW = slider.firstElementChild
+                ? slider.firstElementChild.offsetWidth + 12
+                : 1;
+            slider.scrollLeft = initialIdx * slideW;
+        });
+    }
+
+    // Remover listener previo antes de agregar uno nuevo (evita acumulación)
+    if (_sliderScrollHandler) {
+        slider.removeEventListener('scroll', _sliderScrollHandler);
+    }
+    _sliderScrollHandler = () => {
         const slideW = slider.firstElementChild ? slider.firstElementChild.offsetWidth + 12 : 1;
         const idx    = Math.round(slider.scrollLeft / slideW);
         if (idx !== _activeCardIdx && cards[idx]) {
@@ -1232,7 +1296,8 @@ function renderMobileSlider(cards) {
             document.querySelectorAll('#dot-indicators .dot').forEach((d,i) => d.classList.toggle('active', i===idx));
             renderMobileDetailPanel(cards[idx]);
         }
-    }, { passive: true });
+    };
+    slider.addEventListener('scroll', _sliderScrollHandler, { passive: true });
 }
 
 /* ============================================
@@ -1297,21 +1362,23 @@ function renderMobileDetailPanel(card) {
             }
             const recent = data.transactions.slice(0, 5);
             tabHist.innerHTML = recent.map(t => {
-                const signo = t.row_type==='expense'?'+':'-';
-                const cls   = t.row_type==='expense'?'text-danger':'text-success';
-                const badge = t.row_type==='expense'
-                    ? '<span class="tx-badge tx-gasto">Gasto</span>'
-                    : '<span class="tx-badge tx-pago">Pago</span>';
+                const isExp = t.row_type === 'expense';
+                const isCre = t.row_type === 'credit';
+                const signo = isExp ? '+' : '-';
+                const cls   = isExp ? 'text-danger' : (isCre ? 'text-teal' : 'text-success');
+                const style = isExp ? 'color:#e24b4a' : (isCre ? 'color:var(--credit-mid)' : 'color:var(--success-mid)');
+                const badgeCls = isExp ? 'tx-gasto' : (isCre ? 'tx-credito' : 'tx-pago');
+                const badgeLbl = isExp ? 'Gasto' : (isCre ? 'Crédito' : 'Pago');
                 const fecha = new Date(t.date+'T00:00:00').toLocaleDateString('es-DO',{day:'numeric',month:'short'});
-                const desc  = escapeHtml(t.description||(t.row_type==='payment'?'Pago de tarjeta':'Gasto'));
+                const desc  = escapeHtml(t.description||(t.row_type==='payment'?'Pago de tarjeta':''));
                 return `<div class="tx-row">
                     <div>
-                        <div class="tx-meta">${desc}</div>
+                        <div class="tx-meta">${desc || badgeLbl}</div>
                         <div class="tx-date">${fecha}</div>
                     </div>
                     <div>
-                        <div class="tx-amount ${cls}">${signo} ${t.currency_symbol||''}${fmt(t.amount)}</div>
-                        ${badge}
+                        <div class="tx-amount" style="${style}">${signo} ${t.currency_symbol||''}${fmt(t.amount)}</div>
+                        <span class="tx-badge ${badgeCls}">${badgeLbl}</span>
                     </div>
                 </div>`;
             }).join('') + `
@@ -1340,18 +1407,31 @@ function switchTab(event, panelId) {
    CARGAR DATOS
    ============================================ */
 function loadCards() {
+    // Guardar ID de la tarjeta activa para restaurar posición tras el reload
+    const savedCardId = (_allCards.length > 0 && _activeCardIdx < _allCards.length)
+        ? _allCards[_activeCardIdx].id
+        : null;
+
     ajaxPost({ action:'get_cards' })
         .then(data => {
             if (!data.success) { showError(data.message, data.full_message); return; }
-            _usdRate     = data.usd_rate;
-            _categories  = data.categories;
-            _dopAccounts = data.dop_accounts;
-            _allCards    = data.cards;
-            _activeCardIdx = 0;
+            _usdRate          = data.usd_rate;
+            _categories       = data.categories;
+            _incomeCategories = data.income_categories || [];
+            _dopAccounts      = data.dop_accounts;
+            _allCards         = data.cards;
+
+            // Buscar el índice de la tarjeta que estaba activa antes del reload
+            let targetIdx = 0;
+            if (savedCardId !== null) {
+                const found = data.cards.findIndex(c => c.id == savedCardId);
+                if (found >= 0) targetIdx = found;
+            }
+            _activeCardIdx = targetIdx;
 
             renderSummaryStrip(data);
             renderAlerts(data);
-            renderMobileSlider(data.cards);
+            renderMobileSlider(data.cards, targetIdx);
             renderDesktopGrid(data.cards);
         })
         .catch(err => showError('No se pudieron cargar las tarjetas.', err.message));
@@ -1383,7 +1463,7 @@ document.getElementById('btn-create-card').addEventListener('click', function ()
 });
 
 /* ============================================
-   EDITAR TARJETA  ← NEW
+   EDITAR TARJETA
    ============================================ */
 function openEditModal(cardId) {
     const card = _allCards.find(c => c.id == cardId);
@@ -1426,7 +1506,7 @@ function openExpenseModal(cardId) {
     document.getElementById('expense-card-id').value     = cardId;
     document.getElementById('expense-amount').value      = '';
     document.getElementById('expense-description').value = '';
-    document.getElementById('expense-date').value        = localDateStr();  // ← auto fecha
+    document.getElementById('expense-date').value        = localDateStr();
     const sel = document.getElementById('expense-category');
     sel.innerHTML = '<option value="">Seleccionar categoría</option>' +
         _categories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
@@ -1455,11 +1535,46 @@ document.getElementById('btn-add-expense').addEventListener('click', function ()
 });
 
 /* ============================================
+   MODAL CRÉDITO / DEVOLUCIÓN / CASHBACK
+   ============================================ */
+function openCreditModal(cardId) {
+    document.getElementById('credit-card-id').value     = cardId;
+    document.getElementById('credit-amount').value      = '';
+    document.getElementById('credit-description').value = '';
+    document.getElementById('credit-date').value        = localDateStr();
+    const sel = document.getElementById('credit-category');
+    sel.innerHTML = '<option value="">Seleccionar categoría</option>' +
+        _incomeCategories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    new bootstrap.Modal(document.getElementById('creditModal')).show();
+}
+
+document.getElementById('btn-add-credit').addEventListener('click', function () {
+    const cardId      = document.getElementById('credit-card-id').value;
+    const currency    = document.getElementById('credit-currency').value;
+    const amount      = document.getElementById('credit-amount').value;
+    const categoryId  = document.getElementById('credit-category').value;
+    const date        = document.getElementById('credit-date').value;
+    const description = document.getElementById('credit-description').value.trim();
+    if (!amount || parseFloat(amount) <= 0) { showError('El monto debe ser mayor a 0.'); return; }
+
+    setLoading('btn-add-credit','btn-credit-text','btn-credit-spinner',true);
+    ajaxPost({ action:'add_card_credit', card_id:cardId, currency, amount, category_id:categoryId, date, description })
+        .then(data => {
+            if (!data.success) { showError(data.message, data.full_message); return; }
+            showSuccess(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('creditModal')).hide();
+            loadCards();
+        })
+        .catch(err => showError('Error de red al registrar el crédito.', err.message))
+        .finally(() => setLoading('btn-add-credit','btn-credit-text','btn-credit-spinner',false));
+});
+
+/* ============================================
    MODAL PAGO
    ============================================ */
 function openPayModal(cardId) {
     document.getElementById('pay-card-id').value = cardId;
-    document.getElementById('pay-date').value     = localDateStr();  // ← auto fecha
+    document.getElementById('pay-date').value     = localDateStr();
     document.getElementById('pay-dop').value      = '0';
     document.getElementById('pay-usd').value      = '0';
     document.getElementById('dop-for-usd').value  = '0';
@@ -1552,10 +1667,8 @@ function confirmDelete(cardId, cardName) {
 }
 
 /* ============================================
-   HISTORIAL COMPLETO — REDESIGNED
+   HISTORIAL COMPLETO
    ============================================ */
-
-/* --- Filter toggle --- */
 document.getElementById('histFilterToggleBtn').addEventListener('click', function () {
     const panel   = document.getElementById('histFiltersPanel');
     const chevron = document.getElementById('histFilterChevron');
@@ -1564,7 +1677,6 @@ document.getElementById('histFilterToggleBtn').addEventListener('click', functio
     chevron.classList.toggle('open', !open);
 });
 
-/* --- Apply / clear filters --- */
 document.getElementById('btn-apply-filters').addEventListener('click', function () {
     const cardId = document.getElementById('history-card-id').value;
     if (cardId) {
@@ -1589,7 +1701,6 @@ function updateHistFilterBadge() {
     document.getElementById('hist-filters-badge').classList.toggle('d-none', !hasFilters);
 }
 
-/* --- Open modal --- */
 function openHistoryModal(cardId, cardName) {
     document.getElementById('history-card-id').value         = cardId;
     document.getElementById('history-card-name').textContent = cardName;
@@ -1598,7 +1709,6 @@ function openHistoryModal(cardId, cardName) {
     document.getElementById('filter-type').value       = '';
     document.getElementById('hist-filters-badge').classList.add('d-none');
     document.getElementById('history-pagination').innerHTML = '';
-    // Collapse filters on open
     document.getElementById('histFiltersPanel').style.display = 'none';
     document.getElementById('histFilterChevron').classList.remove('open');
     _historyTransactions = [];
@@ -1607,7 +1717,6 @@ function openHistoryModal(cardId, cardName) {
     loadCardTransactions(cardId);
 }
 
-/* --- Load transactions from server --- */
 function loadCardTransactions(cardId, resetPage = true) {
     if (resetPage) _historyPage = 1;
     const area    = document.getElementById('hist-content-area');
@@ -1617,7 +1726,7 @@ function loadCardTransactions(cardId, resetPage = true) {
         <div class="spinner-border spinner-border-sm text-secondary"></div>
         <span>Cargando transacciones…</span>
     </div>`;
-    pagDiv.innerHTML  = '';
+    pagDiv.innerHTML    = '';
     recInfo.textContent = '';
 
     ajaxPost({
@@ -1639,15 +1748,21 @@ function loadCardTransactions(cardId, resetPage = true) {
     });
 }
 
-/* --- SVG icons for history list --- */
+/* SVG icons for history list */
 function histIcon(type) {
     if (type === 'expense') {
+        // Flecha arriba → aumentó la deuda
         return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7-7 7 7"/></svg>`;
     }
+    if (type === 'credit') {
+        // Tag/etiqueta → cashback / devolución
+        return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`;
+    }
+    // Flecha abajo → pago
     return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7 7 7-7"/></svg>`;
 }
 
-/* --- Delete button for history --- */
+/* Delete button */
 function histDeleteBtn(t, mode) {
     const today   = new Date(); today.setHours(0,0,0,0);
     const txDate  = new Date(t.date+'T00:00:00');
@@ -1667,20 +1782,21 @@ function histDeleteBtn(t, mode) {
         : `<button class="btn-del-hist" onclick="confirmDeleteTransaction(${t.id},${cardId})" title="Eliminar y revertir" style="width:28px;height:28px;">${trashSvg}</button>`;
 }
 
-/* --- Render mobile list for history --- */
+/* Mobile list */
 function renderHistMobile(transactions) {
     if (!transactions.length) return '';
     return `<div class="hist-mobile-list">` +
         transactions.map(t => {
             const isExp  = t.row_type === 'expense';
-            const dotCls = isExp ? 'hdot-exp' : 'hdot-pay';
-            const amtCls = isExp ? 'hamt-exp' : 'hamt-pay';
+            const isCre  = t.row_type === 'credit';
+            const dotCls = isExp ? 'hdot-exp' : (isCre ? 'hdot-cre' : 'hdot-pay');
+            const amtCls = isExp ? 'hamt-exp' : (isCre ? 'hamt-cre' : 'hamt-pay');
             const signo  = isExp ? '+' : '-';
-            const badgeCls = isExp ? 'hbadge-exp' : 'hbadge-pay';
-            const badgeLbl = isExp ? 'Gasto' : 'Pago';
+            const badgeCls = isExp ? 'hbadge-exp' : (isCre ? 'hbadge-cre' : 'hbadge-pay');
+            const badgeLbl = isExp ? 'Gasto' : (isCre ? 'Crédito' : 'Pago');
             const fecha    = new Date(t.date+'T00:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'2-digit',year:'numeric'});
-            const desc     = escapeHtml(t.description || (isExp ? 'Gasto' : 'Pago de tarjeta'));
-            const cat      = t.category_name ? escapeHtml(t.category_name) : (isExp ? 'Sin categoría' : 'Pago');
+            const desc     = escapeHtml(t.description || (isExp ? 'Gasto' : (isCre ? 'Crédito/Devolución' : 'Pago de tarjeta')));
+            const cat      = t.category_name ? escapeHtml(t.category_name) : (isExp ? 'Sin categoría' : (isCre ? 'Crédito' : 'Pago'));
             const sym      = escapeHtml(t.currency_symbol || '');
             return `
             <div class="hist-item">
@@ -1702,17 +1818,18 @@ function renderHistMobile(transactions) {
         }).join('') + `</div>`;
 }
 
-/* --- Render desktop table for history --- */
+/* Desktop table */
 function renderHistDesktop(transactions) {
     if (!transactions.length) return '';
     const rows = transactions.map(t => {
         const isExp    = t.row_type === 'expense';
-        const badgeCls = isExp ? 'hbadge-exp' : 'hbadge-pay';
-        const badgeLbl = isExp ? 'Gasto' : 'Pago';
-        const amtCls   = isExp ? 'hamt-exp' : 'hamt-pay';
+        const isCre    = t.row_type === 'credit';
+        const badgeCls = isExp ? 'hbadge-exp' : (isCre ? 'hbadge-cre' : 'hbadge-pay');
+        const badgeLbl = isExp ? 'Gasto' : (isCre ? 'Crédito' : 'Pago');
+        const amtCls   = isExp ? 'hamt-exp' : (isCre ? 'hamt-cre' : 'hamt-pay');
         const signo    = isExp ? '+' : '-';
         const fecha    = new Date(t.date+'T00:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'});
-        const desc     = escapeHtml(t.description || (isExp ? '—' : 'Pago de tarjeta'));
+        const desc     = escapeHtml(t.description || (isExp ? '—' : (isCre ? 'Crédito/Devolución' : 'Pago de tarjeta')));
         const cat      = t.category_name ? escapeHtml(t.category_name) : '—';
         const sym      = escapeHtml(t.currency_symbol || '');
         const balAfter = parseFloat(t.balance_after||0).toLocaleString('es-DO',{minimumFractionDigits:2});
@@ -1749,7 +1866,7 @@ function renderHistDesktop(transactions) {
     </div>`;
 }
 
-/* --- Main render page function --- */
+/* Render page */
 function renderHistoryPage() {
     const area    = document.getElementById('hist-content-area');
     const pagDiv  = document.getElementById('history-pagination');
@@ -1770,25 +1887,16 @@ function renderHistoryPage() {
     const end        = Math.min(start + HISTORY_PAGE_SIZE, _historyTransactions.length);
     const pageTx     = _historyTransactions.slice(start, end);
 
-    // Render both views
     area.innerHTML = renderHistMobile(pageTx) + renderHistDesktop(pageTx);
-
-    // Records info
     recInfo.textContent = `Mostrando ${start+1}–${end} de ${_historyTransactions.length} transacción(es)`;
 
-    // Pagination
-    if (totalPages <= 1) {
-        pagDiv.innerHTML = '';
-        return;
-    }
+    if (totalPages <= 1) { pagDiv.innerHTML = ''; return; }
 
     const prev = _historyPage - 1;
     const next = _historyPage + 1;
     let pHtml  = '';
-
     pHtml += `<button class="hpag-btn ${_historyPage<=1?'disabled':''}" onclick="changeHistoryPage(1)">«</button>`;
     pHtml += `<button class="hpag-btn ${_historyPage<=1?'disabled':''}" onclick="changeHistoryPage(${prev})">‹</button>`;
-
     const st = Math.max(1, _historyPage - 2);
     const en = Math.min(totalPages, _historyPage + 2);
     if (st > 1) pHtml += `<button class="hpag-btn disabled">…</button>`;
@@ -1798,7 +1906,6 @@ function renderHistoryPage() {
     if (en < totalPages) pHtml += `<button class="hpag-btn disabled">…</button>`;
     pHtml += `<button class="hpag-btn ${_historyPage>=totalPages?'disabled':''}" onclick="changeHistoryPage(${next})">›</button>`;
     pHtml += `<button class="hpag-btn ${_historyPage>=totalPages?'disabled':''}" onclick="changeHistoryPage(${totalPages})">»</button>`;
-
     pagDiv.innerHTML = pHtml;
 }
 

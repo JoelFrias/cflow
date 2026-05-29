@@ -604,6 +604,7 @@
 <!-- ════════════════════════════════════════════
      MODAL NUEVA TRANSACCIÓN
 ════════════════════════════════════════════ -->
+
 <div class="modal fade" id="dashTxModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content" style="border:none;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.12)">
@@ -612,9 +613,13 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" style="padding:20px 24px">
+
+        <!-- Tipo -->
         <div class="mb-3">
           <label class="dtx-form-label">Tipo</label>
           <div class="dtx-type-row">
+
+            <!-- Ingreso -->
             <label class="dtx-type-card dtx-income-card" id="dtx-labelIncome">
               <input type="radio" name="dtx-type" value="income" class="d-none" id="dtx-typeIncome">
               <span class="dtx-type-icon dtx-icon-inc">
@@ -622,6 +627,8 @@
               </span>
               <span class="dtx-type-text" style="color:#1D9E75">Ingreso</span>
             </label>
+
+            <!-- Gasto -->
             <label class="dtx-type-card dtx-expense-card dtx-selected" id="dtx-labelExpense">
               <input type="radio" name="dtx-type" value="expense" class="d-none" id="dtx-typeExpense" checked>
               <span class="dtx-type-icon dtx-icon-exp">
@@ -629,6 +636,8 @@
               </span>
               <span class="dtx-type-text" style="color:#D85A30">Gasto</span>
             </label>
+
+            <!-- Transferencia -->
             <label class="dtx-type-card dtx-transfer-card" id="dtx-labelTransfer">
               <input type="radio" name="dtx-type" value="transfer" class="d-none" id="dtx-typeTransfer">
               <span class="dtx-type-icon dtx-icon-trf">
@@ -636,8 +645,40 @@
               </span>
               <span class="dtx-type-text" style="color:#3b82f6">Transferencia</span>
             </label>
+
+            <!-- Crédito Ajuste (no contabiliza) -->
+            <label class="dtx-type-card dtx-cadj-card" id="dtx-labelCAdj">
+              <input type="radio" name="dtx-type" value="credit_adjustment" class="d-none" id="dtx-typeCAdj">
+              <span class="dtx-type-icon dtx-icon-cadj">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7-7 7 7"/><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>
+              </span>
+              <span class="dtx-type-text" style="color:#0891b2">Crédito<br>Ajuste</span>
+            </label>
+
+            <!-- Débito Ajuste (no contabiliza) -->
+            <label class="dtx-type-card dtx-dadj-card" id="dtx-labelDAdj">
+              <input type="radio" name="dtx-type" value="debit_adjustment" class="d-none" id="dtx-typeDAdj">
+              <span class="dtx-type-icon dtx-icon-dadj">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>
+              </span>
+              <span class="dtx-type-text" style="color:#9333ea">Débito<br>Ajuste</span>
+            </label>
+
           </div>
         </div>
+
+        <!-- Badge: aviso de ajuste (oculto por defecto) -->
+        <div id="dtx-adj-badge" style="display:none;align-items:center;gap:9px;
+             background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;
+             padding:9px 13px;margin-bottom:14px;font-size:.78rem;color:#0369a1;line-height:1.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          <span>Esta transacción es un <strong>ajuste contable</strong>: se guardará en el historial pero <strong>no afectará</strong> los KPIs, gráficas ni reportes del dashboard.</span>
+        </div>
+
+        <!-- Cuenta origen -->
         <div class="mb-3">
           <label class="dtx-form-label" id="dtx-labelOrigin">Cuenta</label>
           <div class="dtx-acc-grid" id="dtx-acc-origin">
@@ -645,29 +686,41 @@
           </div>
           <input type="hidden" id="dtx-account-id">
         </div>
+
+        <!-- Cuenta destino (solo transferencia) -->
         <div class="mb-3 d-none" id="dtx-transferToDiv">
           <label class="dtx-form-label">Cuenta destino</label>
           <div class="dtx-acc-grid" id="dtx-acc-dest"></div>
           <input type="hidden" id="dtx-transfer-to">
         </div>
+
+        <!-- Categoría -->
         <div class="mb-3" id="dtx-categoryDiv">
           <label class="dtx-form-label">Categoría</label>
           <select id="dtx-category-id" class="dtx-form-control"></select>
         </div>
+
+        <!-- Monto -->
         <div class="mb-3">
           <label class="dtx-form-label">Monto</label>
           <input type="number" step="0.01" id="dtx-amount" class="dtx-form-control" placeholder="0.00">
         </div>
+
+        <!-- Descripción -->
         <div class="mb-1">
           <label class="dtx-form-label">Descripción <span style="font-weight:400;color:#aaa">(opcional)</span></label>
           <textarea id="dtx-description" class="dtx-form-control" rows="2" placeholder="Ej: Compra en supermercado…"></textarea>
         </div>
+
         <input type="hidden" id="dtx-date">
       </div>
+
       <div class="modal-footer" style="padding:14px 24px;border-top:1px solid #f0f0f0">
         <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" onclick="DashQuickTx.save()"
-          style="padding:8px 22px;background:#374151;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer">
+        <button type="button" id="dtx-save-btn" onclick="DashQuickTx.save()"
+          style="padding:8px 22px;background:#374151;color:#fff;border:none;border-radius:8px;
+                 font-size:14px;font-weight:500;cursor:pointer;min-width:100px;
+                 transition:opacity .2s,background .2s">
           Guardar
         </button>
       </div>
@@ -675,64 +728,246 @@
   </div>
 </div>
 
+<!-- ════════════════════════════════════════════
+     MODAL NUEVA TRANSACCIÓN  (reemplaza el bloque anterior)
+     Cambios:
+       · Nuevas tarjetas: Crédito Ajuste / Débito Ajuste
+       · Badge informativo para ajustes
+       · Botón Guardar con id="dtx-save-btn" (necesario para el bloqueo)
+       · Animación de spinner en CSS
+════════════════════════════════════════════ -->
+<div class="modal fade" id="dashTxModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="border:none;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.12)">
+      <div class="modal-header" style="padding:18px 24px 12px;border-bottom:1px solid #f3f4f6">
+        <h5 class="modal-title" style="font-size:16px;font-weight:500">Nueva Transacción</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px">
+
+        <!-- Tipo -->
+        <div class="mb-3">
+          <label class="dtx-form-label">Tipo</label>
+          <div class="dtx-type-row">
+
+            <!-- Ingreso -->
+            <label class="dtx-type-card dtx-income-card" id="dtx-labelIncome">
+              <input type="radio" name="dtx-type" value="income" class="d-none" id="dtx-typeIncome">
+              <span class="dtx-type-icon dtx-icon-inc">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8.5 14.5l3.5 3.5 3.5-3.5"/></svg>
+              </span>
+              <span class="dtx-type-text" style="color:#1D9E75">Ingreso</span>
+            </label>
+
+            <!-- Gasto -->
+            <label class="dtx-type-card dtx-expense-card dtx-selected" id="dtx-labelExpense">
+              <input type="radio" name="dtx-type" value="expense" class="d-none" id="dtx-typeExpense" checked>
+              <span class="dtx-type-icon dtx-icon-exp">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16V8M8.5 11.5l3.5-3.5 3.5 3.5"/></svg>
+              </span>
+              <span class="dtx-type-text" style="color:#D85A30">Gasto</span>
+            </label>
+
+            <!-- Transferencia -->
+            <label class="dtx-type-card dtx-transfer-card" id="dtx-labelTransfer">
+              <input type="radio" name="dtx-type" value="transfer" class="d-none" id="dtx-typeTransfer">
+              <span class="dtx-type-icon dtx-icon-trf">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14M15 4l4 4-4 4"/><path d="M19 16H5M9 12l-4 4 4 4"/></svg>
+              </span>
+              <span class="dtx-type-text" style="color:#3b82f6">Transferencia</span>
+            </label>
+
+            <!-- Crédito Ajuste (no contabiliza) -->
+            <label class="dtx-type-card dtx-cadj-card" id="dtx-labelCAdj">
+              <input type="radio" name="dtx-type" value="credit_adjustment" class="d-none" id="dtx-typeCAdj">
+              <span class="dtx-type-icon dtx-icon-cadj">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7-7 7 7"/><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>
+              </span>
+              <span class="dtx-type-text" style="color:#0891b2">Crédito<br>Ajuste</span>
+            </label>
+
+            <!-- Débito Ajuste (no contabiliza) -->
+            <label class="dtx-type-card dtx-dadj-card" id="dtx-labelDAdj">
+              <input type="radio" name="dtx-type" value="debit_adjustment" class="d-none" id="dtx-typeDAdj">
+              <span class="dtx-type-icon dtx-icon-dadj">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>
+              </span>
+              <span class="dtx-type-text" style="color:#9333ea">Débito<br>Ajuste</span>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- Badge: aviso de ajuste (oculto por defecto) -->
+        <div id="dtx-adj-badge" style="display:none;align-items:center;gap:9px;
+             background:#f0f9ff;border:1px solid #bae6fd;border-radius:9px;
+             padding:9px 13px;margin-bottom:14px;font-size:.78rem;color:#0369a1;line-height:1.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          <span>Esta transacción es un <strong>ajuste contable</strong>: se guardará en el historial pero <strong>no afectará</strong> los KPIs, gráficas ni reportes del dashboard.</span>
+        </div>
+
+        <!-- Cuenta origen -->
+        <div class="mb-3">
+          <label class="dtx-form-label" id="dtx-labelOrigin">Cuenta</label>
+          <div class="dtx-acc-grid" id="dtx-acc-origin">
+            <div style="color:#9ca3af;font-size:13px;padding:10px 0">Cargando cuentas…</div>
+          </div>
+          <input type="hidden" id="dtx-account-id">
+        </div>
+
+        <!-- Cuenta destino (solo transferencia) -->
+        <div class="mb-3 d-none" id="dtx-transferToDiv">
+          <label class="dtx-form-label">Cuenta destino</label>
+          <div class="dtx-acc-grid" id="dtx-acc-dest"></div>
+          <input type="hidden" id="dtx-transfer-to">
+        </div>
+
+        <!-- Categoría -->
+        <div class="mb-3" id="dtx-categoryDiv">
+          <label class="dtx-form-label">Categoría</label>
+          <select id="dtx-category-id" class="dtx-form-control"></select>
+        </div>
+
+        <!-- Monto -->
+        <div class="mb-3">
+          <label class="dtx-form-label">Monto</label>
+          <input type="number" step="0.01" id="dtx-amount" class="dtx-form-control" placeholder="0.00">
+        </div>
+
+        <!-- Descripción -->
+        <div class="mb-1">
+          <label class="dtx-form-label">Descripción <span style="font-weight:400;color:#aaa">(opcional)</span></label>
+          <textarea id="dtx-description" class="dtx-form-control" rows="2" placeholder="Ej: Compra en supermercado…"></textarea>
+        </div>
+
+        <input type="hidden" id="dtx-date">
+      </div>
+
+      <div class="modal-footer" style="padding:14px 24px;border-top:1px solid #f0f0f0">
+        <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" id="dtx-save-btn" onclick="DashQuickTx.save()"
+          style="padding:8px 22px;background:#374151;color:#fff;border:none;border-radius:8px;
+                 font-size:14px;font-weight:500;cursor:pointer;min-width:100px;
+                 transition:opacity .2s,background .2s">
+          Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 <style>
+/* ══ MODAL NUEVA TRANSACCIÓN — estilos únicos (reemplaza los 3 bloques anteriores) ══ */
+
+/* ── Formulario ─────────────────────────────────────── */
 .dtx-form-label {
-  display:block;font-size:12px;font-weight:500;color:#6b7280;
-  text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;
+  display: block; font-size: 12px; font-weight: 500; color: #6b7280;
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px;
 }
 .dtx-form-control {
-  width:100%;font-size:14px;padding:8px 12px;
-  border:1px solid #e5e7eb;border-radius:8px;
-  background:#fafafa;color:#374151;outline:none;
-  transition:border-color .15s,background .15s;font-family:inherit;
+  width: 100%; font-size: 14px; padding: 8px 12px;
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  background: #fafafa; color: #374151; outline: none;
+  transition: border-color .15s, background .15s; font-family: inherit;
 }
-.dtx-form-control:focus { border-color:#a5b4fc;background:#fff;box-shadow:0 0 0 3px rgba(165,180,252,.15); }
-.dtx-type-row { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
-.dtx-type-card {
-  cursor:pointer;border-radius:10px;border:2px solid #e5e7eb;
-  background:#f9fafb;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;padding:12px 6px 10px;gap:7px;
-  transition:border-color .2s,background .2s,box-shadow .2s;user-select:none;
+.dtx-form-control:focus {
+  border-color: #a5b4fc; background: #fff;
+  box-shadow: 0 0 0 3px rgba(165,180,252,.15);
 }
-.dtx-type-card:hover { background:#f3f4f6; }
-.dtx-type-icon {
-  width:44px;height:44px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;transition:transform .15s;
-}
-.dtx-type-card:hover .dtx-type-icon { transform:scale(1.05); }
-.dtx-icon-inc { background:#eaf3de;color:#1D9E75; }
-.dtx-icon-exp { background:#faece7;color:#D85A30; }
-.dtx-icon-trf { background:#eff6ff;color:#3b82f6; }
-.dtx-type-text { font-size:12px;font-weight:600; }
-.dtx-income-card.dtx-selected   { border-color:#1D9E75;background:#eaf3de;box-shadow:0 0 0 3px rgba(29,158,117,.1); }
-.dtx-expense-card.dtx-selected  { border-color:#D85A30;background:#faece7;box-shadow:0 0 0 3px rgba(216,90,48,.1); }
-.dtx-transfer-card.dtx-selected { border-color:#3b82f6;background:#eff6ff;box-shadow:0 0 0 3px rgba(59,130,246,.1); }
-.dtx-acc-grid {
-  display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;padding-bottom:4px;
-  scrollbar-width:none;-ms-overflow-style:none;
-}
-.dtx-acc-grid::-webkit-scrollbar { display:none; }
-.dtx-acc-card {
-  cursor:pointer;border-radius:10px;border:2px solid #e5e7eb;background:#f9fafb;
-  padding:10px 12px;transition:border-color .18s,background .18s,box-shadow .18s;
-  user-select:none;position:relative;overflow:hidden;flex:0 0 140px;
-}
-.dtx-acc-card:hover { background:#f3f4f6;border-color:#d1d5db; }
-.dtx-acc-card.dtx-sel-origin { border-color:#374151;background:#f8f9fb;box-shadow:0 0 0 3px rgba(55,65,81,.1); }
-.dtx-acc-card.dtx-sel-origin::after {
-  content:'';position:absolute;top:6px;right:6px;
-  width:8px;height:8px;border-radius:50%;background:#374151;
-}
-.dtx-acc-card.dtx-sel-dest { border-color:#3b82f6;background:#eff6ff;box-shadow:0 0 0 3px rgba(59,130,246,.1); }
-.dtx-acc-card.dtx-sel-dest::after {
-  content:'';position:absolute;top:6px;right:6px;
-  width:8px;height:8px;border-radius:50%;background:#3b82f6;
-}
-.dtx-acc-name { font-size:12px;font-weight:600;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px; }
-.dtx-acc-bal  { font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.dtx-acc-cur  { font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:2px;font-weight:600; }
-</style>
 
+/* ── Fila de tipos: UNA sola fila con scroll horizontal ─ */
+.dtx-type-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dtx-type-row::-webkit-scrollbar { display: none; }
+
+/* ── Tarjeta de tipo: ancho fijo, nunca se encoge ─────── */
+.dtx-type-card {
+  cursor: pointer;
+  border-radius: 10px;
+  border: 2px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 6px 10px;
+  gap: 7px;
+  transition: border-color .2s, background .2s, box-shadow .2s;
+  user-select: none;
+  flex: 0 0 88px;
+  min-width: 88px;
+  width: 88px;
+  box-sizing: border-box;
+}
+.dtx-type-card:hover { background: #f3f4f6; }
+
+/* ── Iconos ─────────────────────────────────────────── */
+.dtx-type-icon {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s;
+}
+.dtx-type-card:hover .dtx-type-icon { transform: scale(1.05); }
+.dtx-icon-inc  { background: #eaf3de; color: #1D9E75; }
+.dtx-icon-exp  { background: #faece7; color: #D85A30; }
+.dtx-icon-trf  { background: #eff6ff; color: #3b82f6; }
+.dtx-icon-cadj { background: #e0f2fe; color: #0891b2; }
+.dtx-icon-dadj { background: #f3e8ff; color: #9333ea; }
+
+.dtx-type-text { font-size: 11px; font-weight: 600; text-align: center; line-height: 1.3; }
+
+/* ── Estados seleccionados ──────────────────────────── */
+.dtx-income-card.dtx-selected   { border-color: #1D9E75; background: #eaf3de; box-shadow: 0 0 0 3px rgba(29,158,117,.1); }
+.dtx-expense-card.dtx-selected  { border-color: #D85A30; background: #faece7; box-shadow: 0 0 0 3px rgba(216,90,48,.1); }
+.dtx-transfer-card.dtx-selected { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+.dtx-cadj-card.dtx-selected     { border-color: #0891b2; background: #e0f2fe; box-shadow: 0 0 0 3px rgba(8,145,178,.1); }
+.dtx-dadj-card.dtx-selected     { border-color: #9333ea; background: #f3e8ff; box-shadow: 0 0 0 3px rgba(147,51,234,.1); }
+
+/* ── Cuentas ────────────────────────────────────────── */
+.dtx-acc-grid {
+  display: flex; flex-wrap: nowrap; gap: 7px;
+  overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.dtx-acc-grid::-webkit-scrollbar { display: none; }
+.dtx-acc-card {
+  cursor: pointer; border-radius: 10px; border: 2px solid #e5e7eb;
+  background: #f9fafb; padding: 10px 12px;
+  transition: border-color .18s, background .18s, box-shadow .18s;
+  user-select: none; position: relative; overflow: hidden; flex: 0 0 140px;
+}
+.dtx-acc-card:hover { background: #f3f4f6; border-color: #d1d5db; }
+.dtx-acc-card.dtx-sel-origin { border-color: #374151; background: #f8f9fb; box-shadow: 0 0 0 3px rgba(55,65,81,.1); }
+.dtx-acc-card.dtx-sel-origin::after {
+  content: ''; position: absolute; top: 6px; right: 6px;
+  width: 8px; height: 8px; border-radius: 50%; background: #374151;
+}
+.dtx-acc-card.dtx-sel-dest { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+.dtx-acc-card.dtx-sel-dest::after {
+  content: ''; position: absolute; top: 6px; right: 6px;
+  width: 8px; height: 8px; border-radius: 50%; background: #3b82f6;
+}
+.dtx-acc-name { font-size: 12px; font-weight: 600; color: #1f2937; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.dtx-acc-bal  { font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dtx-acc-cur  { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; font-weight: 600; }
+
+/* ── Spinner del botón Guardar ──────────────────────── */
+@keyframes dtxSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+#dtx-save-btn:disabled { opacity: .7; cursor: not-allowed; }
+</style>
 <!-- ════════════════════════════════════════════
      SCRIPTS
 ════════════════════════════════════════════ -->
@@ -1233,13 +1468,22 @@ checkReminderNotif();
 /* ══════════════════════════════════════════════════════
    DashQuickTx — Modal de transacción rápida en dashboard
 ══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   DashQuickTx — Modal de transacción rápida en dashboard
+   Cambios:
+     · Nuevos tipos: credit_adjustment / debit_adjustment
+     · Bloqueo anti-doble-envío con flag _saving + spinner
+══════════════════════════════════════════════════════════════ */
 const DashQuickTx = (() => {
   const AJAX = 'ajax/transactions.php';
 
-  let _accounts  = [];
-  let _incCats   = [];
-  let _expCats   = [];
-  let _modalInst = null;
+  let _accounts    = [];
+  let _incCats     = [];
+  let _expCats     = [];
+  let _adjIncCats  = [];   // categorías de ajuste crédito (income + is_adjustment=1)
+  let _adjExpCats  = [];   // categorías de ajuste débito  (expense + is_adjustment=1)
+  let _modalInst   = null;
+  let _saving      = false; // ← bandera anti-doble-envío
 
   function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1256,14 +1500,38 @@ const DashQuickTx = (() => {
       showConfirmButton:false,timer:3000,timerProgressBar:true});
   }
 
+  // ── Estado del botón Guardar ──────────────────────────────
+  function setBtnLoading(loading) {
+    const btn = document.getElementById('dtx-save-btn');
+    if (!btn) return;
+    if (loading) {
+      btn.disabled = true;
+      btn.innerHTML = `<span style="display:inline-flex;align-items:center;gap:7px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             style="animation:dtxSpin .7s linear infinite">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+        Guardando…
+      </span>`;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = 'Guardar';
+    }
+  }
+
   async function loadFormData() {
     try {
       const res  = await fetch(`${AJAX}?action=get_form_data`);
       const data = await res.json();
       if (!data.success) throw new Error(data.message);
       _accounts = data.accounts;
-      _incCats  = data.income_categories;
-      _expCats  = data.expense_categories;
+
+      // Separar categorías normales de las de ajuste
+      _incCats    = (data.income_categories  || []).filter(c => !c.is_adjustment || c.is_adjustment == 0);
+      _expCats    = (data.expense_categories || []).filter(c => !c.is_adjustment || c.is_adjustment == 0);
+      _adjIncCats = (data.income_categories  || []).filter(c =>  c.is_adjustment == 1);
+      _adjExpCats = (data.expense_categories || []).filter(c =>  c.is_adjustment == 1);
     } catch(e) {
       err('No se pudieron cargar cuentas/categorías: ' + e.message);
     }
@@ -1318,10 +1586,28 @@ const DashQuickTx = (() => {
     }
   }
 
+  // ── Construir el <select> de categorías según tipo ────────
   function buildCatSelect(type) {
     const sel = document.getElementById('dtx-category-id');
     sel.innerHTML = '<option value="">Seleccionar categoría</option>';
-    const cats = type === 'income' ? _incCats : _expCats;
+
+    let cats = [];
+    if (type === 'income') {
+      cats = _incCats;
+    } else if (type === 'expense') {
+      cats = _expCats;
+    } else if (type === 'credit_adjustment') {
+      cats = _adjIncCats;
+    } else if (type === 'debit_adjustment') {
+      cats = _adjExpCats;
+    }
+
+    if (!cats.length) {
+      // Fallback: todas las de ese tipo base
+      const base = (type === 'credit_adjustment') ? 'income' : 'expense';
+      cats = base === 'income' ? _incCats : _expCats;
+    }
+
     cats.forEach(c => {
       const o = document.createElement('option');
       o.value = c.id; o.textContent = c.name;
@@ -1331,10 +1617,19 @@ const DashQuickTx = (() => {
   }
 
   function onTypeChange(type) {
-    const isTransfer = type === 'transfer';
+    const isTransfer   = type === 'transfer';
+    const isAdjustment = type === 'credit_adjustment' || type === 'debit_adjustment';
+
     document.getElementById('dtx-transferToDiv').classList.toggle('d-none', !isTransfer);
     document.getElementById('dtx-categoryDiv').classList.toggle('d-none', isTransfer);
-    document.getElementById('dtx-labelOrigin').textContent = isTransfer ? 'Cuenta origen' : 'Cuenta';
+
+    const originLabel = document.getElementById('dtx-labelOrigin');
+    originLabel.textContent = isTransfer ? 'Cuenta origen' : 'Cuenta';
+
+    // Mostrar badge informativo si es ajuste
+    const badge = document.getElementById('dtx-adj-badge');
+    if (badge) badge.style.display = isAdjustment ? 'flex' : 'none';
+
     if (isTransfer) {
       document.getElementById('dtx-category-id').value = '1';
       const originId = document.getElementById('dtx-account-id').value || null;
@@ -1342,6 +1637,14 @@ const DashQuickTx = (() => {
     } else {
       buildCatSelect(type);
     }
+  }
+
+  // ── El tipo real enviado al backend ──────────────────────
+  // credit_adjustment → income, debit_adjustment → expense
+  function resolveBackendType(type) {
+    if (type === 'credit_adjustment') return 'income';
+    if (type === 'debit_adjustment')  return 'expense';
+    return type;
   }
 
   async function open() {
@@ -1357,11 +1660,17 @@ const DashQuickTx = (() => {
     document.getElementById('dtx-amount').value      = '';
     document.getElementById('dtx-description').value = '';
 
-    // ✅ Fecha local correcta (sin bug de UTC)
+    const badge = document.getElementById('dtx-adj-badge');
+    if (badge) badge.style.display = 'none';
+
+    // Fecha local correcta (sin bug UTC)
     document.getElementById('dtx-date').value = toLocalDate(new Date());
 
     renderAccCards('dtx-acc-origin','dtx-account-id', null, null, false);
     buildCatSelect('expense');
+
+    _saving = false;
+    setBtnLoading(false);
 
     if (!_modalInst) {
       _modalInst = new bootstrap.Modal(document.getElementById('dashTxModal'));
@@ -1370,6 +1679,11 @@ const DashQuickTx = (() => {
   }
 
   async function save() {
+    // ── Bloqueo anti-doble-envío ──────────────────────────
+    if (_saving) return;
+    _saving = true;
+    setBtnLoading(true);
+
     const type       = document.querySelector('input[name="dtx-type"]:checked')?.value;
     const accountId  = document.getElementById('dtx-account-id').value;
     const transferTo = document.getElementById('dtx-transfer-to').value;
@@ -1378,16 +1692,33 @@ const DashQuickTx = (() => {
     const date       = document.getElementById('dtx-date').value;
     const desc       = document.getElementById('dtx-description').value;
 
-    if (!accountId) { err('Selecciona una cuenta de origen.'); return; }
-    if (type === 'transfer' && !transferTo) { err('Selecciona una cuenta destino.'); return; }
-    if (!amount || parseFloat(amount) <= 0) { err('El monto debe ser mayor a 0.'); return; }
+    // Validaciones con desbloqueo en caso de fallo de validación
+    if (!accountId) {
+      err('Selecciona una cuenta de origen.');
+      _saving = false; setBtnLoading(false); return;
+    }
+    if (type === 'transfer' && !transferTo) {
+      err('Selecciona una cuenta destino.');
+      _saving = false; setBtnLoading(false); return;
+    }
+    if (!amount || parseFloat(amount) <= 0) {
+      err('El monto debe ser mayor a 0.');
+      _saving = false; setBtnLoading(false); return;
+    }
+
+    const backendType = resolveBackendType(type);
 
     try {
       const params = new URLSearchParams({
-        action: 'add_transaction',
-        account_id: accountId, category_id: categoryId,
-        type, amount, date, description: desc,
-        transfer_to: transferTo, payment_currency: '',
+        action:           'add_transaction',
+        account_id:       accountId,
+        category_id:      categoryId,
+        type:             backendType,
+        amount,
+        date,
+        description:      desc,
+        transfer_to:      transferTo,
+        payment_currency: '',
       });
       const res  = await fetch(AJAX, {
         method: 'POST',
@@ -1399,12 +1730,17 @@ const DashQuickTx = (() => {
 
       ok(data.message);
       _modalInst?.hide();
-      load();
+      load(); // refrescar dashboard
     } catch(e) {
       err(e.message);
+    } finally {
+      // Desbloquear siempre, éxito o error
+      _saving = false;
+      setBtnLoading(false);
     }
   }
 
+  // ── Eventos de tipo ────────────────────────────────────────
   document.querySelectorAll('.dtx-type-card').forEach(card => {
     card.addEventListener('click', () => {
       document.querySelectorAll('.dtx-type-card').forEach(c => c.classList.remove('dtx-selected'));

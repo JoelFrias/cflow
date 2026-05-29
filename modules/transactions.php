@@ -101,11 +101,11 @@ $ajax_category_url = 'ajax/create_category.php';
                 <option value="100">100</option>
             </select>
             <span id="records-info" style="font-size:12px;color:#888"></span>
-        </div>
+        </div> <!-- Temporalmente desactivado
         <button class="btn-new-tx" data-bs-toggle="modal" data-bs-target="#transactionModal">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
             Nueva
-        </button>
+        </button> -->
     </div>
 
     <!-- ── Hint móvil ── -->

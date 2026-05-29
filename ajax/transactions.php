@@ -209,9 +209,10 @@ try {
             $stmt_cats = $pdo->prepare("
                 SELECT *, type AS category_type
                 FROM categories
-                WHERE user_id = ?
-                  AND type IN ('income', 'expense')
-                ORDER BY type ASC, name ASC
+                WHERE (user_id = ? OR is_global = 1)
+                AND type     IN ('income', 'expense')
+                AND is_active = 1
+                ORDER BY is_global ASC, type ASC, name ASC
             ");
             $stmt_cats->execute([$user_id]);
             $all_cats = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);

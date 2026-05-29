@@ -6,7 +6,6 @@
 require_once '../config/database.php';
 
 // ── Zona horaria ──────────────────────────────────────────────────────────────
-// Ajusta según tu servidor. República Dominicana usa America/Santo_Domingo (UTC-4).
 date_default_timezone_set('America/Santo_Domingo');
 
 header('Content-Type: application/json');
@@ -20,11 +19,10 @@ $action  = $_POST['action'] ?? $_GET['action'] ?? '';
 
 /**
  * Devuelve [date_from, date_to] según el período solicitado.
- * Períodos válidos: current_month | prev_month | current_year | prev_year | custom
  */
 function resolveDateRange(string $period): array
 {
-    $now = new DateTime('now'); // usa la zona horaria configurada arriba
+    $now = new DateTime('now');
 
     switch ($period) {
         case 'prev_month':
@@ -76,8 +74,7 @@ try {
         // ──────────────────────────────────────────
         case 'get_kpis':
 
-            // 1. Balance total de cuentas activas (excluyendo tarjetas de crédito
-            //    porque su saldo positivo representa deuda, no activo)
+            // 1. Balance total (sin tarjetas de crédito)
             $stmt = $pdo->prepare("
                 SELECT COALESCE(SUM(a.balance * c.exchange_rate_to_dop), 0) AS total_dop
                 FROM   accounts a
@@ -94,9 +91,7 @@ try {
             $usd_rate  = (float) ($stmt_usd->fetchColumn() ?: 1);
             $total_usd = $usd_rate > 0 ? $total_dop / $usd_rate : 0;
 
-            // 2. Balance adeudado:
-            //    - Deudas pendientes (almacenadas en DOP)
-            //    - Tarjetas de crédito: usan balance_dop / balance_usd (no el campo balance)
+            // 2. Balance adeudado
             $stmt = $pdo->prepare("
                 SELECT
                     (SELECT COALESCE(SUM(total_amount - paid_amount), 0)
@@ -119,12 +114,10 @@ try {
             $credit_owed_usd = (float) $owed_row['credit_owed_usd'];
 
             $total_owed     = $debts_owed + $credit_owed_dop;
-            // Total adeudado en USD: saldo USD de tarjetas + deudas DOP convertidas
             $total_owed_usd = $credit_owed_usd + ($usd_rate > 0 ? $debts_owed / $usd_rate : 0);
 
-            // 3. Ingresos / Gastos / Neto en el período.
-            //    Solo type IN ('income','expense') — las transferencias entre cuentas
-            //    quedan completamente excluidas de todos los cálculos financieros.
+            // 3. Ingresos / Gastos del período
+            //    EXCLUYE: transferencias Y transacciones marcadas como ajuste
             $stmt = $pdo->prepare("
                 SELECT
                     COALESCE(SUM(CASE WHEN type = 'income'  THEN converted_amount_dop ELSE 0 END), 0) AS total_income,
@@ -133,6 +126,7 @@ try {
                 FROM transactions
                 WHERE user_id = ? AND date BETWEEN ? AND ?
                   AND type IN ('income', 'expense')
+                  AND excluded_from_reports = 0
             ");
             $stmt->execute([$user_id, $date_from, $date_to]);
             $period_data = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -169,6 +163,7 @@ try {
                 JOIN     categories c ON t.category_id = c.id
                 WHERE    t.user_id = ? AND t.type = 'expense'
                   AND    t.date BETWEEN ? AND ?
+                  AND    t.excluded_from_reports = 0
                 GROUP BY c.id, c.name
                 ORDER BY total DESC
                 LIMIT    10
@@ -185,11 +180,9 @@ try {
 
         // ──────────────────────────────────────────
         // Gráfica 2: Tendencia de balance (línea)
-        // Solo income/expense — sin transferencias
         // ──────────────────────────────────────────
         case 'get_balance_trend':
 
-            // Balance real de cuentas no-crédito
             $stmt = $pdo->prepare("
                 SELECT COALESCE(SUM(a.balance * c.exchange_rate_to_dop), 0) AS total_dop
                 FROM   accounts a
@@ -199,7 +192,6 @@ try {
             $stmt->execute([$user_id]);
             $current_balance = (float) $stmt->fetchColumn();
 
-            // Flujo neto del período (sin transferencias)
             $stmt = $pdo->prepare("
                 SELECT COALESCE(SUM(
                     CASE WHEN type = 'income'  THEN  converted_amount_dop
@@ -209,12 +201,12 @@ try {
                 FROM transactions
                 WHERE user_id = ? AND date BETWEEN ? AND ?
                   AND type IN ('income', 'expense')
+                  AND excluded_from_reports = 0
             ");
             $stmt->execute([$user_id, $date_from, $date_to]);
             $period_net    = (float) $stmt->fetchColumn();
             $balance_start = $current_balance - $period_net;
 
-            // Movimientos diarios dentro del período
             $stmt = $pdo->prepare("
                 SELECT date,
                        COALESCE(SUM(CASE WHEN type = 'income'  THEN converted_amount_dop ELSE 0 END), 0) AS income,
@@ -222,6 +214,7 @@ try {
                 FROM   transactions
                 WHERE  user_id = ? AND date BETWEEN ? AND ?
                   AND  type IN ('income', 'expense')
+                  AND  excluded_from_reports = 0
                 GROUP  BY date
                 ORDER  BY date ASC
             ");
@@ -253,7 +246,7 @@ try {
             break;
 
         // ──────────────────────────────────────────
-        // Últimas 5 transacciones (sin transferencias)
+        // Últimas 5 transacciones (sin transferencias ni ajustes)
         // ──────────────────────────────────────────
         case 'get_recent_transactions':
 
@@ -272,6 +265,7 @@ try {
                 LEFT JOIN currencies curr ON t.original_currency = curr.code
                 WHERE    t.user_id = ? AND t.date BETWEEN ? AND ?
                   AND    t.type IN ('income', 'expense')
+                  AND    t.excluded_from_reports = 0
                 ORDER BY t.date DESC, t.id DESC
                 LIMIT    5
             ");
@@ -284,7 +278,7 @@ try {
             break;
 
         // ──────────────────────────────────────────
-        // Flujo de caja mensual (sin transferencias)
+        // Flujo de caja mensual
         // ──────────────────────────────────────────
         case 'get_cashflow_chart':
 
@@ -297,6 +291,7 @@ try {
                 FROM     transactions
                 WHERE    user_id = ? AND YEAR(date) = ?
                   AND    type IN ('income', 'expense')
+                  AND    excluded_from_reports = 0
                 GROUP BY MONTH(date)
                 ORDER BY month_num ASC
             ");
